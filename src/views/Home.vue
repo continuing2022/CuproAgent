@@ -23,21 +23,7 @@
           class="menu-btn"
           @click="sidebarOpen = true"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="4" y1="6" x2="20" y2="6"></line>
-            <line x1="4" y1="12" x2="20" y2="12"></line>
-            <line x1="4" y1="18" x2="20" y2="18"></line>
-          </svg>
+          <IconMenu />
         </button>
         <div class="header-content">
           <h1>CuproAgent</h1>
@@ -118,20 +104,7 @@
             @click="handleSend"
             :disabled="!input.trim() || isStreaming"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
+            <IconSend />
           </button>
         </div>
         <div class="input-hint">基于橙色系设计 · 温暖智能交互体验</div>
@@ -141,9 +114,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, watchEffect, onMounted } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import Sidebar from "../components/Sidebar.vue";
+import { IconMenu, IconSend } from "../components/icons";
 // 响应式数据
 const input = ref("");
 const isStreaming = ref(false);
@@ -179,7 +153,7 @@ watch(
         messagesEndRef.value.scrollIntoView({ behavior: "smooth" });
       }
     });
-  }
+  },
 );
 
 // 监听输入框内容变化，自动调整高度
@@ -327,7 +301,8 @@ const handleLogout = () => {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -554,6 +529,7 @@ body {
   margin: 0 auto;
   display: flex;
   gap: 12px;
+  align-items: center;
   background: white;
   border: 2px solid rgba(255, 140, 0, 0.2);
   border-radius: 16px;

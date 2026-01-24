@@ -51,7 +51,6 @@
           <form @submit="handleSubmit" class="auth-form">
             <!-- 注册时显示用户名输入框 -->
             <div class="form-group" v-if="!isLogin">
-              <label>用户名</label>
               <div :class="['input-wrapper', { error: errors.username }]">
                 <User size="18" class="input-icon" />
                 <input
@@ -66,9 +65,7 @@
                 errors.username
               }}</span>
             </div>
-
             <div class="form-group">
-              <label>邮箱</label>
               <div :class="['input-wrapper', { error: errors.email }]">
                 <Mail size="18" class="input-icon" />
                 <input
@@ -83,9 +80,7 @@
                 errors.email
               }}</span>
             </div>
-
             <div class="form-group">
-              <label>密码</label>
               <div :class="['input-wrapper', { error: errors.password }]">
                 <Lock size="18" class="input-icon" />
                 <input
@@ -107,10 +102,8 @@
                 errors.password
               }}</span>
             </div>
-
             <!-- 注册时显示确认密码 -->
             <div class="form-group" v-if="!isLogin">
-              <label>确认密码</label>
               <div
                 :class="['input-wrapper', { error: errors.confirmPassword }]"
               >
@@ -127,7 +120,6 @@
                 errors.confirmPassword
               }}</span>
             </div>
-
             <!-- 登录时显示记住我和忘记密码 -->
             <div class="form-options" v-if="isLogin">
               <label class="remember-me">
@@ -136,7 +128,6 @@
               </label>
               <a href="#" class="forgot-link">忘记密码？</a>
             </div>
-
             <button type="submit" class="submit-btn" :disabled="isLoading">
               <template v-if="isLoading">
                 <span class="loading-spinner"></span>
@@ -186,6 +177,8 @@
 <script setup>
 import { ref, reactive } from "vue";
 import router from "@/router";
+import { userLogin, userRegister } from "@/api";
+import { ElMessage } from "element-plus";
 import {
   Mail,
   Lock,
@@ -196,13 +189,10 @@ import {
   Github,
   Chrome,
 } from "lucide-vue-next";
-
-// 响应式状态 - 替代React的useState
 const isLogin = ref(true);
 const showPassword = ref(false);
 const isLoading = ref(false);
 
-// 表单数据 - 替代React的formData useState
 const formData = reactive({
   username: "",
   email: "",
@@ -253,28 +243,62 @@ const validateForm = () => {
   return Object.keys(newErrors).length === 0;
 };
 
-// 表单提交方法
+// 表单提交方法（调用后端接口）
 const handleSubmit = async (e) => {
   e.preventDefault();
-
   if (!validateForm()) return;
 
   isLoading.value = true;
 
-  // 模拟API请求 - 和原代码一致的延迟逻辑
-  setTimeout(() => {
+  try {
+    if (isLogin.value) {
+      const payload = {
+        email: formData.email,
+        password: formData.password,
+      };
+      const res = await userLogin(payload);
+      const token = res?.token || res?.data?.token;
+      const userName = res.user.username || res.data.user.username;
+      if (token) localStorage.setItem("token", token);
+      if (userName) localStorage.setItem("username", userName);
+      ElMessage.success("登录成功");
+      router.push({ name: "Home" });
+    } else {
+      const payload = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      };
+      const res = await userRegister(payload);
+      const token = res?.token || res?.data?.token;
+      const userName = res.user.username || res.data.user.username;
+      if (token) localStorage.setItem("token", token);
+      if (userName) localStorage.setItem("username", userName);
+      ElMessage.success("注册成功，请登录");
+      isLogin.value = true;
+    }
+  } catch (err) {
+    if (err && typeof err === "object") {
+      if (err.errors) {
+        Object.keys(errors).forEach((k) => delete errors[k]);
+        Object.assign(errors, err.errors);
+      } else if (err.message) {
+        ElMessage.warning(err.message);
+      } else {
+        ElMessage.warning("请求出错，请稍后重试");
+      }
+    } else {
+      ElMessage.warning(String(err));
+    }
+  } finally {
     isLoading.value = false;
-    // 跳转到首页
-    router.push({ name: "Home" });
-    // 这里可以跳转到主页面或调用实际的API
-  }, 1500);
+  }
 };
 
 // 输入框内容改变事件
 const handleInputChange = (e) => {
   const { name, value } = e.target;
   formData[name] = value;
-  // 清除对应字段的错误提示
   if (errors[name]) {
     errors[name] = "";
   }
@@ -305,7 +329,8 @@ const handleSocialLogin = (provider) => {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
