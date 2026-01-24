@@ -30,7 +30,7 @@
       </header>
 
       <div class="messages-container">
-        <div v-if="currentConv.messages.length === 0" class="welcome-screen">
+        <div v-if="currentConv.length === 0" class="welcome-screen">
           <div class="welcome-logo">CU</div>
           <h2>你好！我是 CuproAgent</h2>
           <p>一个智能、温暖的 AI 助手</p>
@@ -61,7 +61,7 @@
         </div>
         <div v-else class="messages-list">
           <div
-            v-for="msg in currentConv.messages"
+            v-for="msg in currentConv"
             :key="msg.id"
             class="message"
             :class="msg.role"
@@ -72,12 +72,7 @@
             <div class="message-content">
               {{ msg.content }}
               <span
-                v-if="
-                  msg.role === 'assistant' &&
-                  isStreaming &&
-                  msg.id ===
-                    currentConv.messages[currentConv.messages.length - 1].id
-                "
+                v-if="msg.role === 'assistant' && isStreaming"
                 class="cursor"
                 >|</span
               >
@@ -126,7 +121,7 @@ import { IconMenu, IconSend } from "../components/icons";
 const input = ref("");
 const isStreaming = ref(false);
 const sidebarOpen = ref(true);
-const currentConvId = ref(1);
+const currentConvId = ref(null);
 const textareaRef = ref(null);
 const messagesEndRef = ref(null);
 const showUserModal = ref(false);
@@ -134,33 +129,26 @@ const showUserModal = ref(false);
 // setter helpers 供 Sidebar 组件通过 props 调用以保持父级状态
 const setSidebarOpen = (v) => (sidebarOpen.value = v);
 const setCurrentConvId = async (v) => {
+  if (v === undefined) currentConv.value = [];
   currentConvId.value = v;
-  // 切换会话时从后端加载消息
   try {
     const msgs = await getMessages(v);
-    const conv = conversations.find((c) => c.id === v);
-    if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+    currentConv.value = Array.isArray(msgs.messages) ? msgs.messages : [];
   } catch (e) {
     console.error("getMessages error:", e);
   }
 };
 const setShowUserModal = (v) => (showUserModal.value = v);
 
-// 对话列表（使用 reactive 处理复杂对象）
-const conversations = reactive([
-  { id: 1, title: "新对话", messages: [], timestamp: Date.now() },
-]);
+// 对话列表
+const conversations = reactive([]);
 
 // 计算当前选中的对话
-const currentConv = computed(() => {
-  return (
-    conversations.find((c) => c.id === currentConvId.value) || conversations[0]
-  );
-});
+const currentConv = ref([]);
 
 // 监听消息变化，自动滚动到底部
 watch(
-  () => currentConv.value.messages.length,
+  () => currentConv.value.length,
   () => {
     nextTick(() => {
       if (messagesEndRef.value) {
@@ -169,7 +157,6 @@ watch(
     });
   },
 );
-
 // 监听输入框内容变化，自动调整高度
 watch(input, () => {
   if (textareaRef.value) {
@@ -182,21 +169,44 @@ watch(input, () => {
 // 发送消息处理函数
 const handleSend = async () => {
   if (!input.value.trim() || isStreaming.value) return;
-
   const content = input.value.trim();
   input.value = "";
   isStreaming.value = true;
   try {
-    // 调用后端发送消息接口
-    await sendMessage({ conversationId: currentConvId.value, content });
-    // 发送后刷新该会话消息
-    const msgs = await getMessages(currentConvId.value);
+    // 判断当前会话是否为本地临时会话（尚未持久化到后端）
+    currentConv.value.push({ role: "user", content });
     const conv = conversations.find((c) => c.id === currentConvId.value);
-    if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+    let payload = { content };
+    if (!conv || !conv._local) {
+      // 已存在后端会话，传递 conversation_id
+      payload.conversation_id = currentConvId.value;
+    } else {
+      // 本地新会话，不传 conversation_id，传 title 以便后端创建
+      payload.title = conv.title || content.slice(0, 30);
+    }
+
+    const res = await sendMessage(payload);
+
+    // 如果后端返回了新的 conversation id，更新本地会话
+    const newConvId = res && res.conversation_id;
+    if (conv && conv._local && newConvId) {
+      conv.id = newConvId;
+      delete conv._local;
+      currentConvId.value = newConvId;
+    }
+    // 追加助手消息（流式更新）
+    currentConv.value.push({
+      role: "assistant",
+      content: res.assistant.content,
+    });
+
     // 更新标题与时间（若需要）
-    if (conv && (!conv.title || conv.title === "新对话"))
-      conv.title = content.slice(0, 30);
-    if (conv) conv.timestamp = Date.now();
+    const target = conversations.find(
+      (c) => c.id === (newConvId || currentConvId.value),
+    );
+    if (target && (!target.title || target.title === "新对话"))
+      target.title = content.slice(0, 30);
+    if (target) target.timestamp = Date.now();
   } catch (e) {
     console.error("sendMessage error:", e);
   } finally {
@@ -212,13 +222,21 @@ const handleKeyDown = (e) => {
   }
 };
 
-// 对话列表初始化
+// 对话列表初始化（兼容后端直接返回数组或 { items: [] }）
 const initConversations = async () => {
   try {
-    const data = await getConversations();
-    if (data && data.length > 0) {
-      conversations.splice(0, conversations.length, ...data);
-      currentConvId.value = data[0].id;
+    const res = await getConversations();
+    const raw = Array.isArray(res) ? res : res && res.items ? res.items : [];
+    if (raw && raw.length > 0) {
+      const normalized = raw.map((it) => ({
+        id: it.conversation_id,
+        title: it.title || "新对话",
+        messages: Array.isArray(it.messages) ? it.messages : [],
+        timestamp: new Date(it.updated_at).getTime(),
+      }));
+      conversations.splice(0, conversations.length, ...normalized);
+      currentConvId.value = normalized[0].id;
+      setCurrentConvId(currentConvId.value);
       try {
         const msgs = await getMessages(currentConvId.value);
         const conv = conversations.find((c) => c.id === currentConvId.value);
@@ -226,7 +244,6 @@ const initConversations = async () => {
       } catch (e) {
         console.error("getMessages error:", e);
       }
-    } else {
     }
   } catch (error) {
     console.error("Failed to fetch conversations:", error);
@@ -237,16 +254,18 @@ onMounted(() => {
   initConversations();
 });
 
-// 创建新对话
+// 创建新对话（在前端先创建本地临时会话，发送第一条消息时同步到后端）
 const createNewConversation = () => {
   const newConv = {
-    id: Date.now(),
+    id: undefined,
     title: "新对话",
     messages: [],
     timestamp: Date.now(),
+    _local: true,
   };
   conversations.unshift(newConv);
   currentConvId.value = newConv.id;
+  setCurrentConvId(newConv.id);
 };
 
 // 删除对话
@@ -264,6 +283,8 @@ const deleteConversation = async (id) => {
           const msgs = await getMessages(currentConvId.value);
           const conv = conversations.find((c) => c.id === currentConvId.value);
           if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+          // 更新数据视图
+          // initConversations();
         } catch (e) {
           console.error("getMessages error:", e);
         }
@@ -475,7 +496,6 @@ body {
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
 }
-
 .message.assistant .message-avatar {
   background: #f5f5f5;
   color: #ff8c00;
@@ -488,12 +508,15 @@ body {
   font-size: 15px;
 }
 
+.message.user {
+  flex-direction: row-reverse;
+}
 .message.user .message-content {
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
   border-radius: 12px 12px 4px 12px;
   max-width: 80%;
-  margin-left: auto;
+  margin-right: auto;
 }
 
 .message.assistant .message-content {
