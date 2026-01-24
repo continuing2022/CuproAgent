@@ -6,38 +6,12 @@
         <span class="brand-name">CuproAgent</span>
       </div>
       <button class="close-sidebar" @click="setSidebarOpen(false)">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
+        <IconClose width="20" height="20" />
       </button>
     </div>
 
     <button class="new-chat-btn" @click="createNewConversation">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
+      <IconPlus width="18" height="18" />
       <span>新建对话</span>
     </button>
 
@@ -51,21 +25,7 @@
           :class="{ active: conv.id === currentConvId }"
           @click="setCurrentConvId(conv.id)"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-            ></path>
-          </svg>
+          <IconChat width="16" height="16" />
           <div class="conv-info">
             <div class="conv-title">{{ conv.title }}</div>
             <div class="conv-time">{{ formatTime(conv.timestamp) }}</div>
@@ -75,22 +35,7 @@
             class="delete-btn"
             @click.stop="deleteConversation(conv.id)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path
-                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-              ></path>
-            </svg>
+            <IconTrash width="14" height="14" />
           </button>
         </div>
       </div>
@@ -100,8 +45,8 @@
       <button class="user-btn" @click="setShowUserModal(true)">
         <div class="user-avatar">C</div>
         <div class="user-info">
-          <div class="user-name">continue 张</div>
-          <div class="user-role">免费版</div>
+          <div class="user-name">{{ username }}</div>
+          <div class="user-role">VIP用户</div>
         </div>
       </button>
     </div>
@@ -109,6 +54,8 @@
 </template>
 
 <script setup>
+import { ref, toRefs } from "vue";
+import { IconClose, IconPlus, IconChat, IconTrash } from "./icons";
 const props = defineProps({
   sidebarOpen: Boolean,
   conversations: Array,
@@ -119,12 +66,10 @@ const props = defineProps({
   setSidebarOpen: Function,
   setCurrentConvId: Function,
   setShowUserModal: Function,
-  openSettings: Function,
-  handleLogout: Function,
   formatTime: Function,
 });
-
-// 直接解构便于模板使用
+const username = ref(localStorage.getItem("username") || "用户");
+// 使用 toRefs 保持 prop 响应性（避免解构丢失响应）
 const {
   sidebarOpen,
   conversations,
@@ -135,10 +80,8 @@ const {
   setSidebarOpen,
   setCurrentConvId,
   setShowUserModal,
-  openSettings,
-  handleLogout,
   formatTime,
-} = props;
+} = toRefs(props);
 </script>
 <style scoped>
 /* 侧边栏样式 */

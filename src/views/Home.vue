@@ -11,8 +11,6 @@
       :setSidebarOpen="setSidebarOpen"
       :setCurrentConvId="setCurrentConvId"
       :setShowUserModal="setShowUserModal"
-      :openSettings="openSettings"
-      :handleLogout="handleLogout"
       :formatTime="formatTime"
     />
     <!-- 主聊天区域 -->
@@ -114,9 +112,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Sidebar from "../components/Sidebar.vue";
+import {
+  getConversations,
+  sendMessage,
+  getMessages,
+  deleteConversation as apiDeleteConversation,
+} from "@/api";
 import { IconMenu, IconSend } from "../components/icons";
 // 响应式数据
 const input = ref("");
@@ -129,7 +133,17 @@ const showUserModal = ref(false);
 
 // setter helpers 供 Sidebar 组件通过 props 调用以保持父级状态
 const setSidebarOpen = (v) => (sidebarOpen.value = v);
-const setCurrentConvId = (v) => (currentConvId.value = v);
+const setCurrentConvId = async (v) => {
+  currentConvId.value = v;
+  // 切换会话时从后端加载消息
+  try {
+    const msgs = await getMessages(v);
+    const conv = conversations.find((c) => c.id === v);
+    if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+  } catch (e) {
+    console.error("getMessages error:", e);
+  }
+};
 const setShowUserModal = (v) => (showUserModal.value = v);
 
 // 对话列表（使用 reactive 处理复杂对象）
@@ -169,60 +183,25 @@ watch(input, () => {
 const handleSend = async () => {
   if (!input.value.trim() || isStreaming.value) return;
 
-  const userMessage = {
-    role: "user",
-    content: input.value.trim(),
-    id: Date.now(),
-  };
-
-  // 更新对话列表
-  conversations.forEach((conv) => {
-    if (conv.id === currentConvId.value) {
-      conv.messages.push(userMessage);
-      // 如果是第一个消息，更新对话标题
-      if (conv.messages.length === 1) {
-        conv.title = input.value.slice(0, 30);
-      }
-      conv.timestamp = Date.now();
-    }
-  });
-
+  const content = input.value.trim();
   input.value = "";
   isStreaming.value = true;
-
-  // 模拟流式输出
-  const responses = [
-    "我是 CuproAgent 智能助手，很高兴为您服务！",
-    "我可以帮您解答问题、提供建议、进行创意创作等多种任务。",
-    "基于脐橙色系的温暖设计，希望能给您带来愉悦的交互体验。",
-    "有什么我可以帮助您的吗？",
-  ];
-
-  const randomResponse =
-    responses[Math.floor(Math.random() * responses.length)];
-  const botMessage = { role: "assistant", content: "", id: Date.now() + 1 };
-
-  // 添加空的助手消息
-  conversations.forEach((conv) => {
-    if (conv.id === currentConvId.value) {
-      conv.messages.push(botMessage);
-    }
-  });
-
-  // 流式输出效果
-  for (let i = 0; i <= randomResponse.length; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    conversations.forEach((conv) => {
-      if (conv.id === currentConvId.value) {
-        const lastMsg = conv.messages[conv.messages.length - 1];
-        if (lastMsg.role === "assistant") {
-          lastMsg.content = randomResponse.slice(0, i);
-        }
-      }
-    });
+  try {
+    // 调用后端发送消息接口
+    await sendMessage({ conversationId: currentConvId.value, content });
+    // 发送后刷新该会话消息
+    const msgs = await getMessages(currentConvId.value);
+    const conv = conversations.find((c) => c.id === currentConvId.value);
+    if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+    // 更新标题与时间（若需要）
+    if (conv && (!conv.title || conv.title === "新对话"))
+      conv.title = content.slice(0, 30);
+    if (conv) conv.timestamp = Date.now();
+  } catch (e) {
+    console.error("sendMessage error:", e);
+  } finally {
+    isStreaming.value = false;
   }
-
-  isStreaming.value = false;
 };
 
 // 键盘事件处理
@@ -232,6 +211,31 @@ const handleKeyDown = (e) => {
     handleSend();
   }
 };
+
+// 对话列表初始化
+const initConversations = async () => {
+  try {
+    const data = await getConversations();
+    if (data && data.length > 0) {
+      conversations.splice(0, conversations.length, ...data);
+      currentConvId.value = data[0].id;
+      try {
+        const msgs = await getMessages(currentConvId.value);
+        const conv = conversations.find((c) => c.id === currentConvId.value);
+        if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+      } catch (e) {
+        console.error("getMessages error:", e);
+      }
+    } else {
+    }
+  } catch (error) {
+    console.error("Failed to fetch conversations:", error);
+  }
+};
+
+onMounted(() => {
+  initConversations();
+});
 
 // 创建新对话
 const createNewConversation = () => {
@@ -246,14 +250,27 @@ const createNewConversation = () => {
 };
 
 // 删除对话
-const deleteConversation = (id) => {
+const deleteConversation = async (id) => {
   if (conversations.length === 1) return;
-  const index = conversations.findIndex((c) => c.id === id);
-  if (index !== -1) {
-    conversations.splice(index, 1);
-    if (currentConvId.value === id) {
-      currentConvId.value = conversations[0].id;
+  try {
+    await apiDeleteConversation(id);
+    const index = conversations.findIndex((c) => c.id === id);
+    if (index !== -1) {
+      conversations.splice(index, 1);
+      if (currentConvId.value === id) {
+        currentConvId.value = conversations[0].id;
+        // 加载新选中会话的消息
+        try {
+          const msgs = await getMessages(currentConvId.value);
+          const conv = conversations.find((c) => c.id === currentConvId.value);
+          if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
+        } catch (e) {
+          console.error("getMessages error:", e);
+        }
+      }
     }
+  } catch (e) {
+    console.error("deleteConversation error:", e);
   }
 };
 
@@ -278,19 +295,6 @@ const nextTick = (callback) => {
 };
 
 const router = useRouter();
-
-const openSettings = () => {
-  showUserModal.value = false;
-  if (router && router.push) {
-    router.push("/setting").catch(() => {});
-  }
-};
-
-const handleLogout = () => {
-  showUserModal.value = false;
-  // TODO: 在此添加实际退出逻辑（清除 token、调用 API 等）
-  alert("已退出登录");
-};
 </script>
 
 <style scoped>
