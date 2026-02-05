@@ -40,32 +40,24 @@
         </div>
       </div>
     </div>
-
     <div class="sidebar-footer">
-      <button class="user-btn" @click="setShowUserModal(true)">
-        <div class="user-avatar">C</div>
-        <div class="user-info">
-          <div class="user-name">{{ username }}</div>
-          <div class="user-role">VIP用户</div>
-        </div>
-      </button>
+      <UserProfile />
     </div>
   </aside>
 </template>
 
 <script setup>
 import { ref, toRefs } from "vue";
+import UserProfile from "./userProfile.vue";
 import { IconClose, IconPlus, IconChat, IconTrash } from "./icons";
 const props = defineProps({
   sidebarOpen: Boolean,
   conversations: Array,
   currentConvId: [Number, String],
-  showUserModal: Boolean,
   createNewConversation: Function,
   deleteConversation: Function,
   setSidebarOpen: Function,
   setCurrentConvId: Function,
-  setShowUserModal: Function,
   formatTime: Function,
 });
 const username = ref(localStorage.getItem("username") || "用户");
@@ -74,12 +66,10 @@ const {
   sidebarOpen,
   conversations,
   currentConvId,
-  showUserModal,
   createNewConversation,
   deleteConversation,
   setSidebarOpen,
   setCurrentConvId,
-  setShowUserModal,
   formatTime,
 } = toRefs(props);
 </script>

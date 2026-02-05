@@ -11,11 +11,6 @@ const routes = [
     name: "Login",
     component: () => import("../views/Login.vue"),
   },
-  {
-    path: "/history",
-    name: "History",
-    component: () => import("../views/History.vue"),
-  },
 ];
 
 const router = createRouter({

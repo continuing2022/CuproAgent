@@ -5,12 +5,10 @@
       :sidebarOpen="sidebarOpen"
       :conversations="conversations"
       :currentConvId="currentConvId"
-      :showUserModal="showUserModal"
       :createNewConversation="createNewConversation"
       :deleteConversation="deleteConversation"
       :setSidebarOpen="setSidebarOpen"
       :setCurrentConvId="setCurrentConvId"
-      :setShowUserModal="setShowUserModal"
       :formatTime="formatTime"
     />
     <!-- 主聊天区域 -->
@@ -124,12 +122,12 @@ const sidebarOpen = ref(true);
 const currentConvId = ref(null);
 const textareaRef = ref(null);
 const messagesEndRef = ref(null);
-const showUserModal = ref(false);
 
 // setter helpers 供 Sidebar 组件通过 props 调用以保持父级状态
 const setSidebarOpen = (v) => (sidebarOpen.value = v);
 const setCurrentConvId = async (v) => {
   if (v === undefined) currentConv.value = [];
+  if (currentConvId.value === v) return;
   currentConvId.value = v;
   try {
     const msgs = await getMessages(v);
@@ -138,7 +136,6 @@ const setCurrentConvId = async (v) => {
     console.error("getMessages error:", e);
   }
 };
-const setShowUserModal = (v) => (showUserModal.value = v);
 
 // 对话列表
 const conversations = reactive([]);

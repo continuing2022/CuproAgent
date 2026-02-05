@@ -257,10 +257,12 @@ const handleSubmit = async (e) => {
         password: formData.password,
       };
       const res = await userLogin(payload);
-      const token = res?.token || res?.data?.token;
-      const userName = res.user.username || res.data.user.username;
+      const token = res?.token;
+      const userName = res.user.username;
+      const email = res.user.email;
       if (token) localStorage.setItem("token", token);
       if (userName) localStorage.setItem("username", userName);
+      if (email) localStorage.setItem("email", email);
       ElMessage.success("登录成功");
       router.push({ name: "Home" });
     } else {
@@ -270,10 +272,12 @@ const handleSubmit = async (e) => {
         password: formData.password,
       };
       const res = await userRegister(payload);
-      const token = res?.token || res?.data?.token;
-      const userName = res.user.username || res.data.user.username;
+      const token = res?.token;
+      const userName = res.user.username;
+      const email = res.user.email;
       if (token) localStorage.setItem("token", token);
       if (userName) localStorage.setItem("username", userName);
+      if (email) localStorage.setItem("email", email);
       ElMessage.success("注册成功，请登录");
       isLogin.value = true;
     }
