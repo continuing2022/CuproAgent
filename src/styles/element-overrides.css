@@ -1,8 +1,8 @@
 
 /* 退出登录确认框样式 - CuproAgent 橙色主题 */
 .logout-confirm-box {
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 12px !important;
+  padding: 20px !important;
   background: linear-gradient(135deg, #fff 0%, #fff5f0 100%);
   border: 2px solid #ff8c3a;
 }

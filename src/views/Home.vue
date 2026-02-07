@@ -1,24 +1,23 @@
 <template>
-  <div class="oragen-container">
-    <Sidebar
-      v-if="sidebarOpen"
-      :sidebarOpen="sidebarOpen"
-      :conversations="conversations"
-      :currentConvId="currentConvId"
-      :createNewConversation="createNewConversation"
-      :deleteConversation="deleteConversation"
-      :setSidebarOpen="setSidebarOpen"
-      :setCurrentConvId="setCurrentConvId"
-      :formatTime="formatTime"
-    />
+  <div class="oragen-container" :class="{ collapsed }">
+    <transition name="sidebar">
+      <Sidebar
+        v-if="sidebarOpen"
+        :sidebarOpen="sidebarOpen"
+        :conversations="conversations"
+        :currentConvId="currentConvId"
+        :createNewConversation="createNewConversation"
+        :deleteConversation="deleteConversation"
+        :setSidebarOpen="setSidebarOpen"
+        :setCurrentConvId="setCurrentConvId"
+        :formatTime="formatTime"
+      />
+    </transition>
+
     <!-- 主聊天区域 -->
     <main class="chat-main">
       <header class="chat-header">
-        <button
-          v-if="!sidebarOpen"
-          class="menu-btn"
-          @click="sidebarOpen = true"
-        >
+        <button v-if="!sidebarOpen" class="menu-btn" @click="toggle()">
           <IconMenu />
         </button>
         <div class="header-content">
@@ -106,7 +105,6 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from "vue";
-import { useRouter } from "vue-router";
 import Sidebar from "../components/Sidebar.vue";
 import {
   getConversations,
@@ -119,16 +117,33 @@ import { IconMenu, IconSend } from "../components/icons";
 const input = ref("");
 const isStreaming = ref(false);
 const sidebarOpen = ref(true);
+const collapsed = ref(false);
 const currentConvId = ref(null);
 const textareaRef = ref(null);
 const messagesEndRef = ref(null);
 
+function toggle() {
+  collapsed.value = !collapsed.value;
+
+  if (collapsed.value) {
+    setTimeout(() => {
+      sidebarOpen.value = false;
+    }, 300);
+  } else {
+    sidebarOpen.value = true;
+  }
+}
+
 // setter helpers 供 Sidebar 组件通过 props 调用以保持父级状态
 const setSidebarOpen = (v) => (sidebarOpen.value = v);
+// 设置当前对话 ID 并加载对应消息
 const setCurrentConvId = async (v) => {
-  if (v === undefined) currentConv.value = [];
-  if (currentConvId.value === v) return;
+  // 当前点击的就是当前会话，直接返回
   currentConvId.value = v;
+  if (v === undefined) {
+    currentConv.value = [];
+    return;
+  }
   try {
     const msgs = await getMessages(v);
     currentConv.value = Array.isArray(msgs.messages) ? msgs.messages : [];
@@ -179,7 +194,7 @@ const handleSend = async () => {
       payload.conversation_id = currentConvId.value;
     } else {
       // 本地新会话，不传 conversation_id，传 title 以便后端创建
-      payload.title = conv.title || content.slice(0, 30);
+      payload.title = content.slice(0, 30) || conv.title;
     }
 
     const res = await sendMessage(payload);
@@ -232,8 +247,8 @@ const initConversations = async () => {
         timestamp: new Date(it.updated_at).getTime(),
       }));
       conversations.splice(0, conversations.length, ...normalized);
-      currentConvId.value = normalized[0].id;
-      setCurrentConvId(currentConvId.value);
+      // currentConvId.value = normalized[0].id;
+      setCurrentConvId(normalized[0].id);
       try {
         const msgs = await getMessages(currentConvId.value);
         const conv = conversations.find((c) => c.id === currentConvId.value);
@@ -253,6 +268,15 @@ onMounted(() => {
 
 // 创建新对话（在前端先创建本地临时会话，发送第一条消息时同步到后端）
 const createNewConversation = () => {
+  // 判断当前是否存在本地未同步会话
+  const hasLocal = conversations.some((c) => c._local);
+  if (hasLocal) {
+    // 切换到该会话
+    const localConv = conversations.find((c) => c._local);
+    currentConvId.value = localConv.id;
+    setCurrentConvId(localConv.id);
+    return;
+  }
   const newConv = {
     id: undefined,
     title: "新对话",
@@ -266,25 +290,30 @@ const createNewConversation = () => {
 };
 
 // 删除对话
-const deleteConversation = async (id) => {
+const deleteConversation = async (conv) => {
   if (conversations.length === 1) return;
-  try {
-    await apiDeleteConversation(id);
-    const index = conversations.findIndex((c) => c.id === id);
-    if (index !== -1) {
+  if (conv.id === undefined) {
+    // 本地未同步会话，直接删除
+    const index = conversations.findIndex((c) => c === conv);
+    if (index !== undefined) {
+      // 删除会话
       conversations.splice(index, 1);
-      if (currentConvId.value === id) {
+      // 如果删除的是当前会话，切换到第一个会话
+      if (currentConvId.value === conv.id) {
         currentConvId.value = conversations[0].id;
-        // 加载新选中会话的消息
-        try {
-          const msgs = await getMessages(currentConvId.value);
-          const conv = conversations.find((c) => c.id === currentConvId.value);
-          if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
-          // 更新数据视图
-          // initConversations();
-        } catch (e) {
-          console.error("getMessages error:", e);
-        }
+        setCurrentConvId(currentConvId.value);
+      }
+    }
+    return;
+  }
+  try {
+    await apiDeleteConversation(conv.id);
+    const index = conversations.findIndex((c) => c.id === conv.id);
+    if (index !== undefined) {
+      conversations.splice(index, 1);
+      if (currentConvId.value === conv.id) {
+        currentConvId.value = conversations[0].id;
+        setCurrentConvId(currentConvId.value);
       }
     }
   } catch (e) {
@@ -312,7 +341,16 @@ const nextTick = (callback) => {
   Promise.resolve().then(callback);
 };
 
-const router = useRouter();
+// watch 去监听 conversations 的长度 如果等于0 便创建一个新的对话
+watch(
+  () => conversations.length,
+  (newLength) => {
+    if (newLength === 0) {
+      createNewConversation();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style lang="scss" scoped>
@@ -612,37 +650,23 @@ body {
   margin-top: 12px;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
-    height: 100vh;
-    z-index: 1000;
-  }
+.sidebar-enter-from,
+.sidebar-leave-to {
+  transform: translateX(-100%);
+}
 
-  .sidebar:not(.open) {
-    transform: translateX(-100%);
-  }
+.sidebar-enter-active,
+.sidebar-leave-active {
+  transition: transform 0.3s ease;
+}
 
-  .close-sidebar {
-    display: block;
-  }
+/* 主页面动画（永远只看 collapsed） */
+.chat-main {
+  transition: padding-left 0.3s ease;
+}
 
-  .suggestion-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .chat-header {
-    padding: 16px;
-  }
-
-  .messages-container {
-    padding: 16px;
-  }
-
-  .input-container {
-    padding: 16px;
-  }
+.layout.collapsed .chat-main {
+  padding-left: 0;
 }
 
 /* 滚动条样式 */

@@ -79,7 +79,7 @@ const userTier = "免费版";
 
 // 退出登录方法
 const handleLogout = () => {
-  ElMessageBox.confirm("Are you sure you want to log out?", "Warning", {
+  ElMessageBox.confirm("确定要退出登录吗？", "警告", {
     confirmButtonText: "OK",
     cancelButtonText: "Cancel",
     type: "warning",

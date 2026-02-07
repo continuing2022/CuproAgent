@@ -27,13 +27,13 @@
         >
           <IconChat width="16" height="16" />
           <div class="conv-info">
-            <div class="conv-title">{{ conv.title }}</div>
+            <div class="conv-title" :title="conv.title">{{ conv.title }}</div>
             <div class="conv-time">{{ formatTime(conv.timestamp) }}</div>
           </div>
           <button
             v-if="conversations.length > 1"
             class="delete-btn"
-            @click.stop="deleteConversation(conv.id)"
+            @click.stop="deleteConversation(conv)"
           >
             <IconTrash width="14" height="14" />
           </button>
