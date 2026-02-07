@@ -7,7 +7,8 @@ export default {
   name: "App",
 };
 </script>
-<style scoped>
+<style lang="scss" scoped>
+@import "@/styles/variables.scss";
 * {
   margin: 0;
   padding: 0;
@@ -15,7 +16,8 @@ export default {
 }
 </style>
 
-<style>
+<style lang="scss">
+@import "@/styles/variables.scss";
 html,
 body,
 #app {

@@ -315,7 +315,8 @@ const nextTick = (callback) => {
 const router = useRouter();
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@import "@/styles/variables.scss";
 * {
   margin: 0;
   padding: 0;
@@ -342,7 +343,6 @@ body {
   flex-direction: column;
   max-width: 100%;
 }
-
 .chat-header {
   padding: 20px 24px;
   border-bottom: 1px solid rgba(255, 140, 0, 0.1);

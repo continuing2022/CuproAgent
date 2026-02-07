@@ -11,47 +11,54 @@
       </button>
 
       <!-- 下拉菜单 -->
-      <div v-if="isOpen" class="dropdown-wrapper">
-        <!-- 遮罩层 -->
-        <div class="dropdown-mask" @click="isOpen = false" />
+      <transition
+        enter-active-class="animate-in"
+        leave-active-class="animate-out"
+      >
+        <div v-if="isOpen" class="dropdown-wrapper">
+          <!-- 遮罩层 -->
+          <div class="dropdown-mask" @click="isOpen = false" />
 
-        <!-- 菜单内容 -->
-        <div class="dropdown-content">
-          <!-- 用户信息头部 -->
-          <div class="dropdown-header">
-            <div class="avatar-lg">{{ userProfile }}</div>
-            <div class="user-info-lg">
-              <div class="username-lg">{{ username }}</div>
-              <div class="userEmail-lg">{{ userEmail }}</div>
+          <!-- 菜单内容 -->
+          <div class="dropdown-content">
+            <!-- 用户信息头部 -->
+            <div class="dropdown-header">
+              <div class="avatar-lg">{{ userProfile }}</div>
+              <div class="user-info-lg">
+                <div class="username-lg" :title="username">{{ username }}</div>
+                <div class="userEmail-lg" :title="userEmail">
+                  {{ userEmail }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 菜单项 -->
+            <div class="dropdown-menu">
+              <!-- 个性化 -->
+              <button class="menu-item">
+                <User class="menu-icon" />
+                <span class="menu-text">个性化</span>
+              </button>
+              <!-- 设置 -->
+              <button class="menu-item">
+                <Settings class="menu-icon" />
+                <span class="menu-text">设置</span>
+              </button>
+              <!-- 帮助 -->
+              <button class="menu-item menu-item-border">
+                <HelpCircle class="menu-icon" />
+                <span class="menu-text">帮助</span>
+                <span class="menu-arrow">›</span>
+              </button>
+              <!-- 退出登录 -->
+              <button class="menu-item menu-item-logout" @click="handleLogout">
+                <LogOut class="menu-icon menu-icon-logout" />
+                <span class="menu-text menu-text-logout">退出登录</span>
+              </button>
             </div>
           </div>
-
-          <!-- 菜单项 -->
-          <div class="dropdown-menu">
-            <!-- 个性化 -->
-            <button class="menu-item">
-              <User class="menu-icon" />
-              <span class="menu-text">个性化</span>
-            </button>
-            <!-- 设置 -->
-            <button class="menu-item">
-              <Settings class="menu-icon" />
-              <span class="menu-text">设置</span>
-            </button>
-            <!-- 帮助 -->
-            <button class="menu-item menu-item-border">
-              <HelpCircle class="menu-icon" />
-              <span class="menu-text">帮助</span>
-              <span class="menu-arrow">›</span>
-            </button>
-            <!-- 退出登录 -->
-            <button class="menu-item menu-item-logout" @click="handleLogout">
-              <LogOut class="menu-icon menu-icon-logout" />
-              <span class="menu-text menu-text-logout">退出登录</span>
-            </button>
-          </div>
         </div>
-      </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -72,16 +79,25 @@ const userTier = "免费版";
 
 // 退出登录方法
 const handleLogout = () => {
-  // 清除本地存储的用户信息
-  localStorage.removeItem("username");
-  localStorage.removeItem("token");
-  localStorage.removeItem("email");
-  // 刷新页面或重定向到登录页
-  window.location.reload();
+  ElMessageBox.confirm("Are you sure you want to log out?", "Warning", {
+    confirmButtonText: "OK",
+    cancelButtonText: "Cancel",
+    type: "warning",
+    customClass: "logout-confirm-box",
+  })
+    .then(() => {
+      localStorage.removeItem("username");
+      localStorage.removeItem("token");
+      localStorage.removeItem("email");
+      // 刷新页面或重定向到登录页
+      window.location.reload();
+    })
+    .catch(() => {});
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@import "@/styles/variables.scss";
 /* 根容器：居中+背景 */
 .profile-menu-container {
   display: flex;
@@ -178,36 +194,51 @@ const handleLogout = () => {
   left: -10px;
   top: -345px;
   width: 265px;
-  background-color: #1f2937;
+  background: linear-gradient(135deg, #ffffff 0%, #fff8f3 100%);
   border-radius: 0.75rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 25px 50px -12px rgba(255, 122, 31, 0.3),
+    0 0 0 1px rgba(255, 140, 58, 0.1);
   overflow: hidden;
-  border: 1px solid #374151;
+  border: 2px solid #ff8c3a;
   z-index: 50;
 }
 
 /* 下拉菜单头部：用户信息 */
 .dropdown-header {
   padding: 1rem;
-  border-bottom: 1px solid #374151;
+  border-bottom: 2px solid #ffe4d1;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  background: linear-gradient(135deg, #fff5ed 0%, #ffffff 100%);
 }
+
 .user-info-lg .username-lg {
-  color: #ffffff;
-  font-weight: 500;
+  color: #1f2937;
+  font-weight: 600;
   font-size: 1.125rem;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 .user-info-lg .userEmail-lg {
-  color: #9ca3af;
+  color: #ff8c3a;
   font-size: 0.875rem;
+  font-weight: 500;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 菜单项容器 */
 .dropdown-menu {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
+  background: #ffffff;
 }
 
 /* 通用菜单项样式 */
@@ -219,42 +250,89 @@ const handleLogout = () => {
   gap: 0.75rem;
   background-color: transparent;
   border: none;
-  color: #ffffff;
+  color: #374151;
   text-align: left;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
   cursor: pointer;
   font-weight: 500;
+  position: relative;
 }
+
+.menu-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, #ff8c3a 0%, transparent 100%);
+  transition: width 0.3s ease;
+}
+
 .menu-item:hover {
-  background-color: #374151;
+  background: linear-gradient(90deg, #fff5ed 0%, #ffffff 100%);
+  color: #ff7a1f;
+  transform: translateX(4px);
 }
+
+.menu-item:hover::before {
+  width: 4px;
+}
+
 /* 菜单项图标通用样式 */
 .menu-icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: #9ca3af;
-  transition: color 0.2s ease;
-}
-.menu-item:hover .menu-icon {
-  color: #fb923c;
-}
-/* 帮助菜单项：底部边框+右侧箭头 */
-.menu-item-border {
-  border-bottom: 1px solid #374151;
-}
-.menu-arrow {
-  margin-left: auto;
-  color: #6b7280;
+  color: #ff8c3a;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
-/* 退出登录菜单项：hover红色 */
-.menu-item-logout:hover .menu-icon-logout {
-  color: #f87171;
+.menu-item:hover .menu-icon {
+  color: #ff7a1f;
+  transform: scale(1.1);
 }
-.menu-text-logout {
-  transition: color 0.2s ease;
+
+/* 帮助菜单项：底部边框+右侧箭头 */
+.menu-item-border {
+  border-bottom: 1px solid #ffe4d1;
 }
-.menu-item-logout:hover .menu-text-logout {
-  color: #f87171;
+
+.menu-arrow {
+  margin-left: auto;
+  color: #ff8c3a;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.menu-item:hover .menu-arrow {
+  color: #ff7a1f;
+  transform: translateX(4px);
+}
+
+/* 退出登录按钮特殊样式 */
+.menu-item.logout-item {
+  color: #ef4444;
+  margin-top: 0.5rem;
+  border-top: 2px solid #ffe4d1;
+}
+
+.menu-item.logout-item .menu-icon {
+  color: #ef4444;
+}
+
+.menu-item.logout-item:hover {
+  background: linear-gradient(90deg, #fee2e2 0%, #ffffff 100%);
+  color: #dc2626;
+}
+
+.menu-item.logout-item:hover .menu-icon {
+  color: #dc2626;
+}
+
+.menu-item.logout-item:hover::before {
+  background: linear-gradient(90deg, #ef4444 0%, transparent 100%);
 }
 </style>

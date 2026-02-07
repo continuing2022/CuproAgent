@@ -73,7 +73,8 @@ const {
   formatTime,
 } = toRefs(props);
 </script>
-<style scoped>
+<style lang="scss" scoped>
+@import "@/styles/variables.scss";
 /* 侧边栏样式 */
 .sidebar {
   width: 280px;

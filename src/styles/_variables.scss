@@ -1,0 +1,25 @@
+// 全局 SASS 变量（由脚手架自动导入）
+$color-primary: #ff8c00;
+$color-primary-2: #ffb84d;
+$color-primary-3: #ffa500;
+$color-accent: #ffd700;
+$color-bg: #fffbf5;
+$color-white: #ffffff;
+$text-dark: #2d2d2d;
+$text-muted: #666666;
+$text-muted-2: #999999;
+$color-danger: #ff4d4f;
+
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 24px;
+
+$shadow-primary: rgba(255, 140, 0, 0.3);
+$shadow-primary-weak: rgba(255, 140, 0, 0.15);
+
+// 常用渐变
+$gradient-primary: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
+
+// 可扩展的占位变量（将来可根据需要替换）
+$border-muted: rgba(255, 140, 0, 0.1);

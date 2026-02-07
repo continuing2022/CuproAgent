@@ -1,0 +1,116 @@
+
+/* 退出登录确认框样式 - CuproAgent 橙色主题 */
+.logout-confirm-box {
+  border-radius: 12px;
+  padding: 20px;
+  background: linear-gradient(135deg, #fff 0%, #fff5f0 100%);
+  border: 2px solid #ff8c3a;
+}
+
+/* 标题样式 */
+.logout-confirm-box .el-message-box__title {
+  color: #ff7a1f;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+/* 内容文字样式 */
+.logout-confirm-box .el-message-box__content {
+  color: #666;
+  font-size: 14px;
+  padding: 20px 0;
+}
+
+/* 警告图标样式 */
+.logout-confirm-box .el-message-box__status {
+  color: #ff8c3a !important;
+  font-size: 24px;
+}
+
+/* 按钮容器 */
+.logout-confirm-box .el-message-box__btns {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 10px;
+}
+
+/* 确认按钮样式 */
+.logout-confirm-box .el-button--primary {
+  background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
+  border: none;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(255, 122, 31, 0.3);
+}
+
+.logout-confirm-box .el-button--primary:hover {
+  background: linear-gradient(135deg, #ff7a1f 0%, #ff6a0f 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 122, 31, 0.4);
+}
+
+.logout-confirm-box .el-button--primary:active {
+  transform: translateY(0);
+}
+
+/* 取消按钮样式 */
+.logout-confirm-box .el-button--default {
+  background: #fff;
+  border: 2px solid #ff8c3a;
+  color: #ff7a1f;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.logout-confirm-box .el-button:hover {
+  background: #fff5f0;
+  border-color: #ff7a1f;
+  color: #ff6a0f;
+}
+
+/* 关闭按钮样式 */
+.logout-confirm-box .el-message-box__headerbtn {
+  top: 16px;
+  right: 16px;
+  font-size: 18px;
+}
+
+.logout-confirm-box .el-message-box__headerbtn .el-message-box__close {
+  color: #ff8c3a;
+  transition: color 0.3s ease;
+}
+
+.logout-confirm-box .el-message-box__headerbtn:hover .el-message-box__close {
+  color: #ff7a1f;
+}
+
+/* 动画 */
+
+.animate-in {
+  animation: pop-in 0.5s ease-out forwards;
+}
+.animate-out {
+  animation: pop-out 0.5s ease-in forwards;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

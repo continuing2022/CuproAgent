@@ -325,7 +325,8 @@ const handleSocialLogin = (provider) => {
   alert(`使用 ${provider} 登录`);
 };
 </script>
-<style scoped>
+<style lang="scss" scoped>
+@import "@/styles/variables.scss";
 * {
   margin: 0;
   padding: 0;
@@ -346,7 +347,7 @@ body {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: #fffbf5;
+  background: $color-bg;
 }
 
 .auth-background {
@@ -370,7 +371,7 @@ body {
 .orb-1 {
   width: 400px;
   height: 400px;
-  background: linear-gradient(135deg, #ffb84d, #ff8c00);
+  background: $gradient-primary;
   top: -100px;
   left: -100px;
   animation-delay: 0s;
@@ -379,7 +380,7 @@ body {
 .orb-2 {
   width: 300px;
   height: 300px;
-  background: linear-gradient(135deg, #ff8c00, #ffb84d);
+  background: $gradient-primary;
   bottom: -50px;
   right: -50px;
   animation-delay: 5s;
@@ -388,7 +389,7 @@ body {
 .orb-3 {
   width: 350px;
   height: 350px;
-  background: linear-gradient(135deg, #ffd700, #ffa500);
+  background: linear-gradient(135deg, $color-accent, $color-primary-3);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -435,21 +436,21 @@ body {
 .logo-circle {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
+  background: $gradient-primary;
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   font-weight: 700;
-  color: white;
-  box-shadow: 0 8px 24px rgba(255, 140, 0, 0.3);
+  color: $color-white;
+  box-shadow: 0 8px 24px $shadow-primary;
 }
 
 .brand-title {
   font-size: 36px;
   font-weight: 700;
-  background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
+  background: $gradient-primary;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -457,7 +458,7 @@ body {
 
 .brand-desc {
   font-size: 18px;
-  color: #666;
+  color: $text-muted;
   margin-bottom: 48px;
 }
 
@@ -475,14 +476,14 @@ body {
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  border: 1px solid rgba(255, 140, 0, 0.1);
+  border: 1px solid $border-muted;
   transition: all 0.3s;
 }
 
 .feature-item:hover {
   transform: translateX(10px);
-  border-color: rgba(255, 140, 0, 0.3);
-  box-shadow: 0 8px 24px rgba(255, 140, 0, 0.15);
+  border-color: $shadow-primary;
+  box-shadow: 0 8px 24px $shadow-primary-weak;
 }
 
 .feature-icon {
@@ -493,12 +494,12 @@ body {
 .feature-text h3 {
   font-size: 18px;
   margin-bottom: 4px;
-  color: #2d2d2d;
+  color: $text-dark;
 }
 
 .feature-text p {
   font-size: 14px;
-  color: #666;
+  color: $text-muted;
 }
 
 /* 表单区域 */
@@ -561,18 +562,18 @@ body {
 
 .input-wrapper:focus-within {
   background: white;
-  border-color: #ffb84d;
+  border-color: $color-primary-2;
 }
 
 .input-wrapper.error {
-  border-color: #ff4d4f;
+  border-color: $color-danger;
   background: #fff5f5;
 }
 
 .input-icon {
   position: absolute;
   left: 14px;
-  color: #999;
+  color: $text-muted-2;
 }
 
 .input-wrapper input {
@@ -582,11 +583,11 @@ body {
   background: transparent;
   padding: 14px 14px 14px 44px;
   font-size: 15px;
-  color: #2d2d2d;
+  color: $text-dark;
 }
 
 .input-wrapper input::placeholder {
-  color: #999;
+  color: $text-muted-2;
 }
 
 .password-toggle {
@@ -599,12 +600,12 @@ body {
 }
 
 .password-toggle:hover {
-  color: #ff8c00;
+  color: $color-primary;
 }
 
 .error-text {
   font-size: 12px;
-  color: #ff4d4f;
+  color: $color-danger;
   margin-top: -4px;
 }
 
@@ -632,20 +633,20 @@ body {
 
 .forgot-link {
   font-size: 14px;
-  color: #ff8c00;
+  color: $color-primary;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .forgot-link:hover {
-  color: #ffb84d;
+  color: $color-primary-2;
 }
 
 .submit-btn {
   margin-top: 8px;
   padding: 14px 24px;
-  background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
-  color: white;
+  background: $gradient-primary;
+  color: $color-white;
   border: none;
   border-radius: 12px;
   font-size: 16px;
@@ -656,7 +657,7 @@ body {
   justify-content: center;
   gap: 8px;
   transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.3);
+  box-shadow: 0 4px 12px $shadow-primary;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -673,7 +674,7 @@ body {
   width: 20px;
   height: 20px;
   border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border-top-color: $color-white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -702,10 +703,10 @@ body {
 
 .divider span {
   position: relative;
-  background: white;
+  background: $color-white;
   padding: 0 16px;
   font-size: 13px;
-  color: #999;
+  color: $text-muted-2;
 }
 
 .social-login {
@@ -731,8 +732,8 @@ body {
 }
 
 .social-btn:hover {
-  border-color: #ffb84d;
-  background: #fffbf5;
+  border-color: $color-primary-2;
+  background: $color-bg;
 }
 
 .switch-mode {
@@ -745,7 +746,7 @@ body {
 .switch-btn {
   background: none;
   border: none;
-  color: #ff8c00;
+  color: $color-primary;
   font-weight: 600;
   cursor: pointer;
   margin-left: 4px;
@@ -753,14 +754,14 @@ body {
 }
 
 .switch-btn:hover {
-  color: #ffb84d;
+  color: $color-primary-2;
 }
 
 .form-footer {
   text-align: center;
   margin-top: 24px;
   font-size: 12px;
-  color: #999;
+  color: $text-muted-2;
 }
 
 .footer-links {
@@ -772,13 +773,13 @@ body {
 }
 
 .footer-links a {
-  color: #ff8c00;
+  color: $color-primary;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .footer-links a:hover {
-  color: #ffb84d;
+  color: $color-primary-2;
 }
 
 /* 响应式设计 */
