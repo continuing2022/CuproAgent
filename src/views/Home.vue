@@ -67,9 +67,11 @@
               {{ msg.role === "user" ? "U" : " CU" }}
             </div>
             <div class="message-content">
-              {{ msg.content }}
+              <div v-html="renderContent(msg.content)"></div>
               <span
-                v-if="msg.role === 'assistant' && isStreaming"
+                v-if="
+                  msg.role === 'assistant' && streamingMsgId === msg._tempId
+                "
                 class="cursor"
                 >|</span
               >
@@ -109,10 +111,28 @@ import Sidebar from "../components/Sidebar.vue";
 import {
   getConversations,
   sendMessage,
+  sendMessageStream,
   getMessages,
   deleteConversation as apiDeleteConversation,
 } from "@/api";
 import { IconMenu, IconSend } from "../components/icons";
+import MarkdownIt from "markdown-it";
+import DOMPurify from "dompurify";
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true,
+});
+
+const renderContent = (text) => {
+  try {
+    const raw = md.render(text || "");
+    return DOMPurify.sanitize(raw);
+  } catch (e) {
+    return DOMPurify.sanitize(String(text || ""));
+  }
+};
 // 响应式数据
 const input = ref("");
 const isStreaming = ref(false);
@@ -121,6 +141,8 @@ const collapsed = ref(false);
 const currentConvId = ref(null);
 const textareaRef = ref(null);
 const messagesEndRef = ref(null);
+// 当前正在流式输出的消息临时 id（用于只在该消息显示光标）
+const streamingMsgId = ref(null);
 
 function toggle() {
   collapsed.value = !collapsed.value;
@@ -185,43 +207,83 @@ const handleSend = async () => {
   input.value = "";
   isStreaming.value = true;
   try {
-    // 判断当前会话是否为本地临时会话（尚未持久化到后端）
-    currentConv.value.push({ role: "user", content });
+    const makeTempId = () =>
+      `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    currentConv.value.push({ role: "user", content, _tempId: makeTempId() });
     const conv = conversations.find((c) => c.id === currentConvId.value);
     let payload = { content };
     if (!conv || !conv._local) {
-      // 已存在后端会话，传递 conversation_id
       payload.conversation_id = currentConvId.value;
     } else {
-      // 本地新会话，不传 conversation_id，传 title 以便后端创建
-      payload.title = content.slice(0, 30) || conv.title;
+      payload.title = content.slice(0, 10) || conv.title;
     }
 
-    const res = await sendMessage(payload);
-
-    // 如果后端返回了新的 conversation id，更新本地会话
-    const newConvId = res && res.conversation_id;
-    if (conv && conv._local && newConvId) {
-      conv.id = newConvId;
-      delete conv._local;
-      currentConvId.value = newConvId;
-    }
-    // 追加助手消息（流式更新）
-    currentConv.value.push({
+    // 先添加一个空的 assistant 占位，用于流式追加
+    const assistantMsg = {
       role: "assistant",
-      content: res.assistant.content,
+      content: "",
+      _tempId: makeTempId(),
+    };
+    // 标记当前正在流式的消息 id（模板中只在该消息显示光标）
+    streamingMsgId.value = assistantMsg._tempId;
+    currentConv.value.push(assistantMsg);
+
+    const stream = sendMessageStream(payload, {
+      onMessage(data) {
+        // data 可能为字符串 chunk，或对象 { started: true, conversation_id }
+        if (typeof data === "string") {
+          // 流式内容，追加到 assistantMsg
+          currentConv.value = currentConv.value.map((msg) => {
+            if (msg._tempId === assistantMsg._tempId) {
+              return {
+                ...msg,
+                content: msg.content + data,
+              };
+            }
+            return msg;
+          });
+        } else if (data && data.started) {
+          // 后端通知已开始并返回 conversation_id（用于本地 _local 会话）
+          const newConvId = data.conversation_id;
+          if (conv && conv._local && newConvId) {
+            conv.id = newConvId;
+            delete conv._local;
+            currentConvId.value = newConvId;
+          }
+        }
+      },
+      onDone(obj) {
+        // obj: { done: true, conversation_id, message_id }
+        if (obj && obj.conversation_id) {
+          const newConvId = obj.conversation_id;
+          const target = conversations.find(
+            (c) => c.id === (newConvId || currentConvId.value),
+          );
+          if (conv && conv._local && newConvId) {
+            conv.id = newConvId;
+            delete conv._local;
+            currentConvId.value = newConvId;
+          }
+          if (target && (!target.title || target.title === "新对话"))
+            target.title = content.slice(0, 10);
+          if (target) target.timestamp = Date.now();
+        }
+        if (obj && obj.message_id) assistantMsg.id = obj.message_id;
+        // 清除流式标记
+        streamingMsgId.value = null;
+        isStreaming.value = false;
+      },
+      onError(err) {
+        console.error("sendMessageStream error:", err);
+        // 清除流式标记
+        streamingMsgId.value = null;
+        isStreaming.value = false;
+      },
     });
 
-    // 更新标题与时间（若需要）
-    const target = conversations.find(
-      (c) => c.id === (newConvId || currentConvId.value),
-    );
-    if (target && (!target.title || target.title === "新对话"))
-      target.title = content.slice(0, 30);
-    if (target) target.timestamp = Date.now();
+    // 如果需要在将来支持中断：stream.abort()
   } catch (e) {
     console.error("sendMessage error:", e);
-  } finally {
     isStreaming.value = false;
   }
 };
@@ -492,7 +554,7 @@ body {
 }
 
 .messages-list {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   width: 100%;
 }
@@ -550,7 +612,6 @@ body {
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
   border-radius: 12px 12px 4px 12px;
-  max-width: 80%;
   margin-right: auto;
 }
 
