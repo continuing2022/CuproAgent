@@ -260,9 +260,11 @@ const handleSubmit = async (e) => {
       const token = res?.token;
       const userName = res.user.username;
       const email = res.user.email;
+      const role = res.user.role;
       if (token) localStorage.setItem("token", token);
       if (userName) localStorage.setItem("username", userName);
       if (email) localStorage.setItem("email", email);
+      if (role) localStorage.setItem("role", role);
       ElMessage.success("登录成功");
       router.push({ name: "Home" });
     } else {
@@ -271,14 +273,7 @@ const handleSubmit = async (e) => {
         email: formData.email,
         password: formData.password,
       };
-      const res = await userRegister(payload);
-      const token = res?.token;
-      const userName = res.user.username;
-      const email = res.user.email;
-      if (token) localStorage.setItem("token", token);
-      if (userName) localStorage.setItem("username", userName);
-      if (email) localStorage.setItem("email", email);
-      ElMessage.success("注册成功，请登录");
+      await userRegister(payload);
       isLogin.value = true;
     }
   } catch (err) {

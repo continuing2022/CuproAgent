@@ -40,6 +40,51 @@ export async function userRegister(payload) {
   const res = await api.post("/auth/register", payload);
   return res.data;
 }
+// -------- 用户管理 API --------
+export async function getUsers(params = {}) {
+  const res = await api.get("/auth/users", { params });
+  return res.data;
+}
+
+export async function getUsersStats() {
+  const res = await api.get("/auth/users/stats");
+  return res.data;
+}
+
+export async function getUserById(id) {
+  const res = await api.get(`/auth/users/${id}`);
+  return res.data;
+}
+
+export async function createUser(payload) {
+  const res = await api.post(`/auth/users`, payload);
+  return res.data;
+}
+
+export async function updateUser(id, payload) {
+  const res = await api.put(`/auth/users/${id}`, payload);
+  return res.data;
+}
+
+export async function deleteUser(id) {
+  const res = await api.delete(`/auth/users/${id}`);
+  return res.data;
+}
+
+export async function bulkDeleteUsers(userIds) {
+  const res = await api.post(`/auth/users/bulk-delete`, { userIds });
+  return res.data;
+}
+
+export async function exportUsers(payload) {
+  const res = await api.post(`/auth/users/export`, payload || {});
+  return res.data;
+}
+
+export async function getCurrentUser() {
+  const res = await api.get(`/auth/me`);
+  return res.data;
+}
 // 获取会话列表（按时间降序）
 export async function getConversations(payload) {
   const res = await api.get("/conversations", payload);

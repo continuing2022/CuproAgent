@@ -44,10 +44,10 @@
                 <Settings class="menu-icon" />
                 <span class="menu-text">设置</span>
               </button>
-              <!-- 帮助 -->
-              <button class="menu-item menu-item-border">
+              <!-- 后台管理 -->
+              <button class="menu-item menu-item-border" @click="onUserMamage">
                 <HelpCircle class="menu-icon" />
-                <span class="menu-text">帮助</span>
+                <span class="menu-text">后台管理</span>
                 <span class="menu-arrow">›</span>
               </button>
               <!-- 退出登录 -->
@@ -68,14 +68,16 @@
 import { ref } from "vue";
 // 导入lucide-vue-next图标
 import { User, Sparkles, Settings, HelpCircle, LogOut } from "lucide-vue-next";
-
+import router from "@/router";
 // 控制下拉菜单显隐
 const isOpen = ref(false);
 // 用户信息常量
 const username = ref(localStorage.getItem("username") || "用户");
 const userEmail = ref(localStorage.getItem("email") || "@example.com");
 const userProfile = ref(username.value.charAt(0).toUpperCase());
-const userTier = "免费版";
+const userTier = ref(
+  localStorage.getItem("role") === "admin" ? "管理员" : "普通用户",
+);
 
 // 退出登录方法
 const handleLogout = () => {
@@ -93,6 +95,21 @@ const handleLogout = () => {
       window.location.reload();
     })
     .catch(() => {});
+};
+const onUserMamage = () => {
+  ElMessageBox.confirm("确定要进入后台管理吗？", "提示", {
+    confirmButtonText: "OK",
+    cancelButtonText: "Cancel",
+    type: "info",
+    customClass: "logout-confirm-box",
+  }).then(() => {
+    const role = localStorage.getItem("role");
+    if (role === "admin") {
+      router.push({ name: "Usermanagement" });
+    } else {
+      ElMessage.error("您没有权限访问后台管理");
+    }
+  });
 };
 </script>
 
