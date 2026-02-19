@@ -114,3 +114,92 @@
     opacity: 0;
   }
 }
+
+/* 选择器（Select）和单选（Radio）覆盖样式 - 黄色主题 */
+:root {
+  --primary-yellow: #f6a623;
+  --primary-yellow-dark: #f39c12;
+}
+
+/* Select 输入框边框与聚焦态 */
+.el-select .el-input__inner {
+  border-color: var(--primary-yellow) !important;
+}
+.el-select .el-input__inner:focus,
+.el-select .el-input__inner.is-focus,
+.el-select .el-input__inner:hover {
+  border-color: var(--primary-yellow-dark) !important;
+  box-shadow: 0 0 0 3px rgba(246,166,35,0.12) !important;
+}
+.el-select .el-input__inner .el-input__icon {
+  color: var(--primary-yellow) !important;
+}
+
+/* 下拉项选中/悬停样式 */
+.el-select-dropdown .el-select-dropdown__item--selected,
+.el-select-dropdown .el-select-dropdown__item:hover {
+  background-color: rgba(246,166,35,0.06) !important;
+  color: var(--primary-yellow-dark) !important;
+}
+
+/* 单选按钮样式 */
+.el-radio.is-checked .el-radio__inner {
+  background-color: var(--primary-yellow) !important;
+  border-color: var(--primary-yellow) !important;
+}
+.el-radio.is-checked .el-radio__inner::after {
+  background-color: #fff !important;
+  box-shadow: none !important;
+}
+.el-radio__label,
+.el-radio.is-checked .el-radio__label {
+  color: var(--primary-yellow-dark) !important;
+}
+.el-radio .el-radio__inner {
+  border-color: rgba(246,166,35,0.6) !important;
+}
+
+/* 兼容性：按钮、tag 等使用 primary 颜色的控件也可偏向黄色 */
+.el-button--primary {
+  background-color: var(--primary-yellow) !important;
+  border-color: var(--primary-yellow) !important;
+}
+
+/* 更高优先级覆盖：确保下拉已选项、下拉项文本、以及 Select 显示的选中文本为黄色 */
+.el-select,
+.el-select * {
+  color-adjust: exact;
+}
+
+/* 强制下拉列表项已选、活跃态颜色 */
+.el-select-dropdown .el-select-dropdown__item--selected,
+.el-select-dropdown .el-select-dropdown__item.is-active,
+.el-select-dropdown .el-select-dropdown__item.selected,
+.el-select-dropdown .el-select-dropdown__item.is-selected {
+  background-color: rgba(246,166,35,0.06) !important;
+  color: var(--primary-yellow-dark) !important;
+}
+
+/* 下拉内的链接或强调文字也覆盖颜色 */
+.el-select-dropdown .el-select-dropdown__item--selected a,
+.el-select-dropdown .el-select-dropdown__item--selected span,
+.el-select-dropdown .el-select-dropdown__item.is-active a,
+.el-select-dropdown .el-select-dropdown__item.is-active span {
+  color: var(--primary-yellow-dark) !important;
+}
+
+/* Select 控件中显示的选中文本（单选/占位文本） */
+.el-select .el-input__inner,
+.el-select .el-input__inner .el-select__tags,
+.el-select .el-input__inner .el-select__tags-text,
+.el-select .el-input__inner .el-select__single,
+.el-select .el-input__inner .el-select__selected-item,
+.filter-select .el-input__inner {
+  color: var(--primary-yellow-dark) !important;
+}
+
+/* 兼容：对带 scoped 样式的组件使用深度选择器的等价规则（提高优先级） */
+:root .el-select .el-input__inner,
+:root .el-select .el-input__inner * {
+  color: var(--primary-yellow-dark) !important;
+}

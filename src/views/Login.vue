@@ -31,8 +31,8 @@
           <div class="feature-item">
             <div class="feature-icon">⚡</div>
             <div class="feature-text">
-              <h3>高效部署</h3>
-              <p>一键私有化快速上线</p>
+              <h3>极速推理</h3>
+              <p>Agent智能问答实时解析</p>
             </div>
           </div>
         </div>
@@ -138,21 +138,6 @@
               </template>
             </button>
           </form>
-
-          <div class="divider">
-            <span>或使用以下方式</span>
-          </div>
-
-          <div class="social-login">
-            <button class="social-btn" @click="handleSocialLogin('GitHub')">
-              <Github size="20" />
-              <span>GitHub</span>
-            </button>
-            <button class="social-btn" @click="handleSocialLogin('Google')">
-              <Chrome size="20" />
-              <span>Google</span>
-            </button>
-          </div>
 
           <div class="switch-mode">
             {{ isLogin ? "还没有账号？" : "已有账号？" }}
@@ -313,11 +298,6 @@ const switchMode = () => {
   formData.email = "";
   formData.password = "";
   formData.confirmPassword = "";
-};
-
-// 第三方登录
-const handleSocialLogin = (provider) => {
-  alert(`使用 ${provider} 登录`);
 };
 </script>
 <style lang="scss" scoped>
@@ -678,57 +658,6 @@ body {
   to {
     transform: rotate(360deg);
   }
-}
-
-.divider {
-  position: relative;
-  text-align: center;
-  margin: 24px 0;
-}
-
-.divider::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #e8e8e8;
-}
-
-.divider span {
-  position: relative;
-  background: $color-white;
-  padding: 0 16px;
-  font-size: 13px;
-  color: $text-muted-2;
-}
-
-.social-login {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.social-btn {
-  padding: 12px 16px;
-  background: white;
-  border: 2px solid #e8e8e8;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #2d2d2d;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.social-btn:hover {
-  border-color: $color-primary-2;
-  background: $color-bg;
 }
 
 .switch-mode {

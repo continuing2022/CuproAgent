@@ -152,7 +152,11 @@
             </el-tag>
           </template>
         </el-table-column>
-
+        <el-table-column label="登录次数" width="180">
+          <template #default="{ row }">
+            {{ row.loginCount }}
+          </template>
+        </el-table-column>
         <el-table-column label="注册时间" width="200">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
@@ -684,6 +688,13 @@ onMounted(async () => {
 /* 容器样式 */
 .user-management-container {
   padding: 2rem;
+  /* 主题色变量（用于与左侧输入框保持一致的主色调） */
+  --accent: #ff8c3a;
+  --accent-2: #ff7a1f;
+  --accent-light: #ffe4d1;
+  --accent-shadow: rgba(255, 122, 31, 0.3);
+  --accent-shadow-strong: rgba(255, 122, 31, 0.4);
+
   background: linear-gradient(135deg, #fff8f3 0%, #ffffff 100%);
   min-height: 100vh;
 }
@@ -705,12 +716,12 @@ onMounted(async () => {
 .header-icon {
   width: 3.5rem;
   height: 3.5rem;
-  background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   border-radius: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 16px rgba(255, 122, 31, 0.3);
+  box-shadow: 0 8px 16px var(--accent-shadow);
   color: #ffffff;
 }
 
@@ -723,14 +734,14 @@ onMounted(async () => {
 
 .page-subtitle {
   font-size: 0.875rem;
-  color: #ff8c3a;
+  color: var(--accent);
   margin: 0.25rem 0 0 0;
 }
 
 /* 搜索卡片 */
 .search-card {
   margin-bottom: 2rem;
-  border: 2px solid #ffe4d1;
+  border: 2px solid var(--accent-light);
   border-radius: 1rem;
 }
 
@@ -763,15 +774,15 @@ onMounted(async () => {
 }
 
 .stat-card {
-  border: 2px solid #ffe4d1;
+  border: 2px solid var(--accent-light);
   border-radius: 1rem;
   transition: all 0.3s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(255, 122, 31, 0.15);
-  border-color: #ff8c3a;
+  box-shadow: 0 12px 24px var(--accent-shadow);
+  border-color: var(--accent);
 }
 
 .stat-content {
@@ -791,7 +802,7 @@ onMounted(async () => {
 }
 
 .stat-icon-total {
-  background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
 }
 
 .stat-icon-admin {
@@ -866,7 +877,7 @@ onMounted(async () => {
   width: auto;
   max-width: 90%;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-  border: 2px solid #ff8c3a;
+  border: 2px solid var(--accent);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
@@ -882,7 +893,7 @@ onMounted(async () => {
 }
 
 .bulk-info strong {
-  color: #ff8c3a;
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -937,9 +948,9 @@ onMounted(async () => {
 
 .btn-back {
   margin-right: 0.75rem;
-  border: 2px solid #ffe4d1;
+  border: 2px solid var(--accent-light);
   background: transparent;
-  color: #ff7a1f;
+  color: var(--accent-2);
 }
 
 /* 过渡动画 */
@@ -956,16 +967,16 @@ onMounted(async () => {
 
 /* Element Plus 组件自定义样式 */
 :deep(.el-button--primary) {
-  background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   border: none;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(255, 122, 31, 0.3);
+  box-shadow: 0 4px 12px var(--accent-shadow);
 }
 
 :deep(.el-button--primary:hover) {
-  background: linear-gradient(135deg, #ff7a1f 0%, #ff6a0f 100%);
+  background: linear-gradient(135deg, var(--accent-2) 0%, #ff6a0f 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 122, 31, 0.4);
+  box-shadow: 0 6px 16px var(--accent-shadow-strong);
 }
 
 :deep(.el-button--warning) {
@@ -987,17 +998,17 @@ onMounted(async () => {
 }
 
 :deep(.el-input__wrapper) {
-  border: 2px solid #ffe4d1;
+  border: 2px solid var(--accent-light);
   border-radius: 0.5rem;
   transition: all 0.3s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #ff8c3a;
+  border-color: var(--accent);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: #ff8c3a;
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 140, 58, 0.1);
 }
 
@@ -1006,12 +1017,12 @@ onMounted(async () => {
 }
 
 :deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-  background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: #ffffff;
 }
 
 :deep(.el-pagination.is-background .el-pager li:not(.is-disabled):hover) {
-  color: #ff7a1f;
+  color: var(--accent-2);
 }
 
 :deep(.el-tag--primary) {
@@ -1031,22 +1042,22 @@ onMounted(async () => {
 }
 
 :deep(.el-card) {
-  border: 2px solid #ffe4d1;
+  border: 2px solid var(--accent-light);
 }
 
 :deep(.el-dialog) {
   border-radius: 1rem;
-  border: 2px solid #ff8c3a;
+  border: 2px solid var(--accent);
 }
 
 :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #fff5ed 0%, #ffffff 100%);
-  border-bottom: 2px solid #ffe4d1;
+  border-bottom: 2px solid var(--accent-light);
   border-radius: 1rem 1rem 0 0;
 }
 
 :deep(.el-dialog__title) {
-  color: #ff7a1f;
+  color: var(--accent-2);
   font-weight: 700;
   font-size: 1.25rem;
 }
@@ -1064,11 +1075,11 @@ onMounted(async () => {
 /* 确认框样式 */
 :deep(.delete-confirm-box) {
   border-radius: 1rem;
-  border: 2px solid #ff8c3a;
+  border: 2px solid var(--accent);
 }
 
 :deep(.delete-confirm-box .el-message-box__title) {
-  color: #ff7a1f;
+  color: var(--accent-2);
   font-weight: 600;
 }
 

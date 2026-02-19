@@ -32,13 +32,16 @@
           <h2>你好！我是 CuproAgent</h2>
           <p>一个智能、温暖的 AI 助手</p>
           <div class="suggestion-cards">
-            <div class="suggestion-card" @click="input = '介绍一下你自己'">
+            <div class="suggestion-card" @click="input = '四类铜合金核心区别'">
               <div class="card-icon">💬</div>
-              <div class="card-title">介绍一下你自己</div>
+              <div class="card-title">四类铜合金核心区别</div>
             </div>
-            <div class="suggestion-card" @click="input = '你可以做什么？'">
+            <div
+              class="suggestion-card"
+              @click="input = ' 新能源/ 光伏/ 半导体用特种铜合金原因'"
+            >
               <div class="card-icon">✨</div>
-              <div class="card-title">你可以做什么？</div>
+              <div class="card-title">新能源/ 光伏/ 半导体用特种铜合金原因</div>
             </div>
             <div
               class="suggestion-card"
@@ -215,7 +218,7 @@ const handleSend = async () => {
     if (!conv || !conv._local) {
       payload.conversation_id = currentConvId.value;
     } else {
-      payload.title = content.slice(0, 10) || conv.title;
+      payload.title = content.slice(0, 15) || conv.title;
     }
 
     // 先添加一个空的 assistant 占位，用于流式追加
@@ -265,7 +268,7 @@ const handleSend = async () => {
             currentConvId.value = newConvId;
           }
           if (target && (!target.title || target.title === "新对话"))
-            target.title = content.slice(0, 10);
+            target.title = content.slice(0, 15);
           if (target) target.timestamp = Date.now();
         }
         if (obj && obj.message_id) assistantMsg.id = obj.message_id;
