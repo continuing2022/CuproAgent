@@ -34,56 +34,83 @@
 
             <!-- 菜单项 -->
             <div class="dropdown-menu">
-              <!-- 个性化 -->
-              <button class="menu-item">
+              <!-- 设置 -> 语言切换 -->
+              <div
+                class="menu-item"
+                style="justify-content: space-between; align-items: center"
+              >
+                <div style="display: flex; align-items: center; gap: 0.75rem">
+                  <Settings class="menu-icon" />
+                  <el-switch
+                    class="language-switch"
+                    v-model="isEnglish"
+                    :active-text="t('lang_en_short')"
+                    :inactive-text="t('lang_zh_short')"
+                  />
+                </div>
+              </div>
+              <!-- 个人信息 -->
+              <button class="menu-item" @click="showUserDetail = true">
                 <User class="menu-icon" />
-                <span class="menu-text">个性化</span>
-              </button>
-              <!-- 设置 -->
-              <button class="menu-item">
-                <Settings class="menu-icon" />
-                <span class="menu-text">设置</span>
+                <span class="menu-text">{{ t("personal_info") }}</span>
               </button>
               <!-- 后台管理 -->
               <button class="menu-item menu-item-border" @click="onUserMamage">
                 <HelpCircle class="menu-icon" />
-                <span class="menu-text">后台管理</span>
+                <span class="menu-text">{{ t("backend_manage") }}</span>
                 <span class="menu-arrow">›</span>
               </button>
               <!-- 退出登录 -->
               <button class="menu-item menu-item-logout" @click="handleLogout">
                 <LogOut class="menu-icon menu-icon-logout" />
-                <span class="menu-text menu-text-logout">退出登录</span>
+                <span class="menu-text menu-text-logout">{{
+                  t("logout")
+                }}</span>
               </button>
             </div>
           </div>
         </div>
       </transition>
+      <!-- 个人信息对话框（只读） -->
+      <UserDetailDialog v-model="showUserDetail" />
     </div>
   </div>
 </template>
 
 <script setup>
 // 导入Vue3响应式状态
-import { ref } from "vue";
+import { ref, computed } from "vue";
 // 导入lucide-vue-next图标
 import { User, Sparkles, Settings, HelpCircle, LogOut } from "lucide-vue-next";
 import router from "@/router";
+import UserDetailDialog from "@/components/UserDetailDialog.vue";
+import { t, locale, setLocale } from "@/i18n";
 // 控制下拉菜单显隐
 const isOpen = ref(false);
+// 语言设置（'zh' 或 'en'），通过 i18n 管理
+const isEnglish = computed({
+  get: () => locale.value === "en",
+  set: (v) => {
+    setLocale(v ? "en" : "zh");
+    // 关闭下拉菜单
+    isOpen.value = false;
+  },
+});
+// 控制用户详情对话框
+const showUserDetail = ref(false);
 // 用户信息常量
-const username = ref(localStorage.getItem("username") || "用户");
+const username = ref(localStorage.getItem("username") || t("default_user"));
 const userEmail = ref(localStorage.getItem("email") || "@example.com");
 const userProfile = ref(username.value.charAt(0).toUpperCase());
-const userTier = ref(
-  localStorage.getItem("role") === "admin" ? "管理员" : "普通用户",
+const userTier = computed(() =>
+  localStorage.getItem("role") === "admin" ? t("admin") : t("normal_user"),
 );
 
 // 退出登录方法
 const handleLogout = () => {
-  ElMessageBox.confirm("确定要退出登录吗？", "警告", {
-    confirmButtonText: "OK",
-    cancelButtonText: "Cancel",
+  ElMessageBox.confirm(t("confirm_logout"), t("warning"), {
+    confirmButtonText: t("ok"),
+    cancelButtonText: t("cancel"),
     type: "warning",
     customClass: "logout-confirm-box",
   })
@@ -97,9 +124,9 @@ const handleLogout = () => {
     .catch(() => {});
 };
 const onUserMamage = () => {
-  ElMessageBox.confirm("确定要进入后台管理吗？", "提示", {
-    confirmButtonText: "OK",
-    cancelButtonText: "Cancel",
+  ElMessageBox.confirm(t("enter_admin"), t("warning"), {
+    confirmButtonText: t("ok"),
+    cancelButtonText: t("cancel"),
     type: "info",
     customClass: "logout-confirm-box",
   }).then(() => {
@@ -107,7 +134,7 @@ const onUserMamage = () => {
     if (role === "admin") {
       router.push({ name: "Usermanagement" });
     } else {
-      ElMessage.error("您没有权限访问后台管理");
+      ElMessage.error(t("no_permission"));
     }
   });
 };
@@ -309,6 +336,29 @@ const onUserMamage = () => {
 .menu-item:hover .menu-icon {
   color: #ff7a1f;
   transform: scale(1.1);
+}
+
+.language-switch {
+  --el-switch-on-color: #ff8c3a;
+  --el-switch-off-color: #ffd8bd;
+}
+
+.language-switch:deep(.el-switch__core) {
+  border: 1px solid rgba(255, 140, 58, 0.45);
+  box-shadow: inset 0 1px 3px rgba(255, 122, 31, 0.18);
+}
+
+.language-switch:deep(.el-switch__action) {
+  border: 1px solid rgba(255, 140, 58, 0.2);
+}
+
+.language-switch:deep(.el-switch__label) {
+  color: #b86932;
+  font-weight: 500;
+}
+
+.language-switch:deep(.el-switch__label.is-active) {
+  color: #ff7a1f;
 }
 
 /* 帮助菜单项：底部边框+右侧箭头 */

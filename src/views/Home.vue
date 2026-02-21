@@ -22,40 +22,31 @@
         </button>
         <div class="header-content">
           <h1>CuproAgent</h1>
-          <p class="subtitle">智能助手 · 铜及铜合金知识问答</p>
+          <p class="subtitle">{{ t("home_subtitle") }}</p>
         </div>
       </header>
 
       <div class="messages-container">
         <div v-if="currentConv.length === 0" class="welcome-screen">
           <div class="welcome-logo">CU</div>
-          <h2>你好！我是 CuproAgent</h2>
-          <p>一个智能、温暖的 AI 助手</p>
+          <h2>{{ t("welcome_title") }}</h2>
+          <p>{{ t("welcome_desc") }}</p>
           <div class="suggestion-cards">
-            <div class="suggestion-card" @click="input = '四类铜合金核心区别'">
+            <div class="suggestion-card" @click="input = t('suggestion_1')">
               <div class="card-icon">💬</div>
-              <div class="card-title">四类铜合金核心区别</div>
+              <div class="card-title">{{ t("suggestion_1") }}</div>
             </div>
-            <div
-              class="suggestion-card"
-              @click="input = ' 新能源/ 光伏/ 半导体用特种铜合金原因'"
-            >
+            <div class="suggestion-card" @click="input = t('suggestion_2')">
               <div class="card-icon">✨</div>
-              <div class="card-title">新能源/ 光伏/ 半导体用特种铜合金原因</div>
+              <div class="card-title">{{ t("suggestion_2") }}</div>
             </div>
-            <div
-              class="suggestion-card"
-              @click="input = '告诉我铜及铜合金的应用'"
-            >
+            <div class="suggestion-card" @click="input = t('suggestion_3')">
               <div class="card-icon">✍️</div>
-              <div class="card-title">告诉我铜及铜合金的应用</div>
+              <div class="card-title">{{ t("suggestion_3") }}</div>
             </div>
-            <div
-              class="suggestion-card"
-              @click="input = '推荐一些铜及铜合金学习资源'"
-            >
+            <div class="suggestion-card" @click="input = t('suggestion_4')">
               <div class="card-icon">📚</div>
-              <div class="card-title">推荐一些铜及铜合金学习资源</div>
+              <div class="card-title">{{ t("suggestion_4") }}</div>
             </div>
           </div>
         </div>
@@ -90,7 +81,7 @@
             ref="textareaRef"
             v-model="input"
             @keydown="handleKeyDown"
-            placeholder="输入消息，按 Enter 发送，Shift + Enter 换行..."
+            :placeholder="t('input_placeholder')"
             rows="1"
             :disabled="isStreaming"
           ></textarea>
@@ -102,7 +93,7 @@
             <IconSend />
           </button>
         </div>
-        <div class="input-hint">基于橙色系设计 · 温暖智能交互体验</div>
+        <div class="input-hint">{{ t("input_hint") }}</div>
       </div>
     </main>
   </div>
@@ -121,6 +112,7 @@ import {
 import { IconMenu, IconSend } from "../components/icons";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
+import { t, locale } from "@/i18n";
 
 const md = new MarkdownIt({
   html: false,
@@ -267,7 +259,7 @@ const handleSend = async () => {
             delete conv._local;
             currentConvId.value = newConvId;
           }
-          if (target && (!target.title || target.title === "新对话"))
+          if (target && (!target.title || target.title === t("new_chat")))
             target.title = content.slice(0, 15);
           if (target) target.timestamp = Date.now();
         }
@@ -307,7 +299,7 @@ const initConversations = async () => {
     if (raw && raw.length > 0) {
       const normalized = raw.map((it) => ({
         id: it.conversation_id,
-        title: it.title || "新对话",
+        title: it.title || t("new_chat"),
         messages: Array.isArray(it.messages) ? it.messages : [],
         timestamp: new Date(it.updated_at).getTime(),
       }));
@@ -344,7 +336,7 @@ const createNewConversation = () => {
   }
   const newConv = {
     id: undefined,
-    title: "新对话",
+    title: t("new_chat"),
     messages: [],
     timestamp: Date.now(),
     _local: true,
@@ -394,11 +386,13 @@ const formatTime = (timestamp) => {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 7) return `${days}天前`;
-  return new Date(timestamp).toLocaleDateString("zh-CN");
+  if (minutes < 1) return t("just_now");
+  if (minutes < 60) return `${minutes}${t("minutes_ago")}`;
+  if (hours < 24) return `${hours}${t("hours_ago")}`;
+  if (days < 7) return `${days}${t("days_ago")}`;
+  return new Date(timestamp).toLocaleDateString(
+    locale.value === "zh" ? "zh-CN" : "en-US",
+  );
 };
 
 // 辅助函数：nextTick 封装

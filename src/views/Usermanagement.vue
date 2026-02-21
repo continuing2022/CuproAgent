@@ -9,8 +9,8 @@
           </el-icon>
         </div>
         <div>
-          <h1 class="page-title">用户管理</h1>
-          <p class="page-subtitle">管理系统中的所有用户信息</p>
+          <h1 class="page-title">{{ t("user_mgmt_title") }}</h1>
+          <p class="page-subtitle">{{ t("user_mgmt_subtitle") }}</p>
         </div>
       </div>
       <div class="header-right">
@@ -18,13 +18,13 @@
           <el-icon class="btn-icon">
             <ArrowLeft />
           </el-icon>
-          返回
+          {{ t("back") }}
         </el-button>
         <el-button type="primary" class="btn-add" @click="handleAdd">
           <el-icon class="btn-icon">
             <Plus />
           </el-icon>
-          添加用户
+          {{ t("add_user") }}
         </el-button>
       </div>
     </div>
@@ -34,7 +34,7 @@
       <div class="search-filter-section">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索用户名、邮箱..."
+          :placeholder="t('search_user_email')"
           class="search-input"
           clearable
           @change="fetchUsers"
@@ -49,21 +49,21 @@
         <div class="filter-group">
           <el-select
             v-model="filterRole"
-            placeholder="所有角色"
+            :placeholder="t('all_roles')"
             clearable
             class="filter-select"
             @change="fetchUsers"
           >
-            <el-option label="所有角色" value="" />
-            <el-option label="管理员" value="admin" />
-            <el-option label="普通用户" value="user" />
+            <el-option :label="t('all_roles')" value="" />
+            <el-option :label="t('admin')" value="admin" />
+            <el-option :label="t('normal_user')" value="user" />
           </el-select>
 
           <el-button class="btn-reset" @click="resetFilters">
             <el-icon class="btn-icon">
               <Refresh />
             </el-icon>
-            重置
+            {{ t("reset") }}
           </el-button>
         </div>
       </div>
@@ -79,7 +79,7 @@
             </el-icon>
           </div>
           <div class="stat-info">
-            <p class="stat-label">总用户数</p>
+            <p class="stat-label">{{ t("total_users") }}</p>
             <p class="stat-value">{{ stats.total }}</p>
           </div>
         </div>
@@ -93,7 +93,7 @@
             </el-icon>
           </div>
           <div class="stat-info">
-            <p class="stat-label">管理员</p>
+            <p class="stat-label">{{ t("admin") }}</p>
             <p class="stat-value">{{ stats.admins }}</p>
           </div>
         </div>
@@ -107,7 +107,7 @@
             </el-icon>
           </div>
           <div class="stat-info">
-            <p class="stat-label">普通用户</p>
+            <p class="stat-label">{{ t("normal_user") }}</p>
             <p class="stat-value">{{ stats.users }}</p>
           </div>
         </div>
@@ -128,7 +128,7 @@
       >
         <el-table-column type="selection" width="55" />
 
-        <el-table-column label="用户信息" min-width="250">
+        <el-table-column :label="t('user_info')" min-width="250">
           <template #default="{ row }">
             <div class="user-info">
               <el-avatar :size="40" :style="{ background: row.avatarColor }">
@@ -142,7 +142,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="角色" width="180">
+        <el-table-column :label="t('role')" width="180">
           <template #default="{ row }">
             <el-tag
               :type="row.role === 'admin' ? 'danger' : 'primary'"
@@ -152,24 +152,24 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="登录次数" width="180">
+        <el-table-column :label="t('login_count')" width="180">
           <template #default="{ row }">
             {{ row.loginCount }}
           </template>
         </el-table-column>
-        <el-table-column label="注册时间" width="200">
+        <el-table-column :label="t('register_time')" width="200">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="最后登录" width="200">
+        <el-table-column :label="t('last_login')" width="200">
           <template #default="{ row }">
             {{ formatDate(row.lastLogin) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column :label="t('actions')" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -218,92 +218,38 @@
       >
         <div class="bulk-content">
           <div class="bulk-info">
-            已选择 <strong>{{ selectedUsers.length }}</strong> 个用户
+            {{ t("selected_prefix") }}
+            <strong>{{ selectedUsers.length }}</strong>
+            {{ t("selected_suffix") }}
           </div>
           <div class="bulk-buttons">
             <el-button type="primary" @click="exportUsers">
               <el-icon class="btn-icon">
                 <Download />
               </el-icon>
-              导出
+              {{ t("export") }}
             </el-button>
             <el-button type="danger" @click="bulkDelete">
               <el-icon class="btn-icon">
                 <Delete />
               </el-icon>
-              批量删除
+              {{ t("bulk_delete") }}
             </el-button>
-            <el-button @click="clearSelection">取消选择</el-button>
+            <el-button @click="clearSelection">{{
+              t("cancel_selection")
+            }}</el-button>
           </div>
         </div>
       </el-card>
     </transition>
 
-    <!-- 用户详情对话框 -->
-    <el-dialog
-      v-model="showUserDetail"
-      title="用户详情"
-      width="600px"
-      :close-on-click-modal="false"
-      class="user-detail-dialog"
-    >
-      <div v-if="selectedUser" class="detail-content">
-        <div class="detail-avatar-section">
-          <el-avatar
-            :size="80"
-            :style="{ background: selectedUser.avatarColor }"
-          >
-            {{ selectedUser.username.charAt(0).toUpperCase() }}
-          </el-avatar>
-          <h3 class="detail-username">{{ selectedUser.username }}</h3>
-          <p class="detail-email">{{ selectedUser.email }}</p>
-          <div class="detail-badges">
-            <el-tag
-              :type="selectedUser.role === 'admin' ? 'danger' : 'primary'"
-              size="large"
-            >
-              {{ getRoleText(selectedUser.role) }}
-            </el-tag>
-          </div>
-        </div>
-
-        <el-divider />
-
-        <div class="detail-info-section">
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="用户 ID">{{
-              selectedUser.id
-            }}</el-descriptions-item>
-            <el-descriptions-item label="注册时间">{{
-              formatDate(selectedUser.createdAt)
-            }}</el-descriptions-item>
-            <el-descriptions-item label="最后登录">{{
-              formatDate(selectedUser.lastLogin)
-            }}</el-descriptions-item>
-            <el-descriptions-item label="登录次数"
-              >{{ selectedUser.loginCount || 0 }} 次</el-descriptions-item
-            >
-          </el-descriptions>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="showUserDetail = false">关闭</el-button>
-          <el-button type="primary" @click="editUser(selectedUser)">
-            <el-icon class="btn-icon">
-              <Edit />
-            </el-icon>
-            编辑用户
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
+    <!-- 用户详情对话框（已提取为独立组件） -->
+    <UserDetailDialog v-model="showUserDetail" :user="selectedUser" />
 
     <!-- 添加/编辑用户对话框 -->
     <el-dialog
       v-model="showUserForm"
-      :title="isEditing ? '编辑用户' : '添加用户'"
+      :title="isEditing ? t('edit_user') : t('add_user')"
       width="500px"
       :close-on-click-modal="false"
       class="user-form-dialog"
@@ -314,26 +260,29 @@
         ref="userFormRef"
         label-width="100px"
       >
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="userForm.username" placeholder="请输入用户名" />
+        <el-form-item :label="t('username')" prop="username">
+          <el-input
+            v-model="userForm.username"
+            :placeholder="t('enter_username')"
+          />
         </el-form-item>
 
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="userForm.email" placeholder="请输入邮箱" />
+        <el-form-item :label="t('email')" prop="email">
+          <el-input v-model="userForm.email" :placeholder="t('enter_email')" />
         </el-form-item>
 
-        <el-form-item label="角色" prop="role">
+        <el-form-item :label="t('role')" prop="role">
           <el-radio-group v-model="userForm.role">
-            <el-radio label="user">普通用户</el-radio>
-            <el-radio label="admin">管理员</el-radio>
+            <el-radio label="user">{{ t("normal_user") }}</el-radio>
+            <el-radio label="admin">{{ t("admin") }}</el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item v-if="!isEditing" label="密码" prop="password">
+        <el-form-item v-if="!isEditing" :label="t('password')" prop="password">
           <el-input
             v-model="userForm.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="t('enter_password')"
             show-password
           />
         </el-form-item>
@@ -341,9 +290,9 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showUserForm = false">取消</el-button>
+          <el-button @click="showUserForm = false">{{ t("cancel") }}</el-button>
           <el-button type="primary" @click="submitUserForm">
-            {{ isEditing ? "保存" : "添加" }}
+            {{ isEditing ? t("save") : t("add") }}
           </el-button>
         </div>
       </template>
@@ -380,6 +329,8 @@ import {
   exportUsers as apiExportUsers,
   getCurrentUser,
 } from "@/api";
+import UserDetailDialog from "@/components/UserDetailDialog.vue";
+import { t } from "@/i18n";
 
 // 数据状态
 const searchQuery = ref("");
@@ -405,17 +356,17 @@ const userForm = ref({
 // 表单验证规则
 const userFormRules = {
   username: [
-    { required: true, message: "请输入用户名", trigger: "blur" },
-    { min: 2, max: 20, message: "长度在 2 到 20 个字符", trigger: "blur" },
+    { required: true, message: t("enter_username"), trigger: "blur" },
+    { min: 2, max: 20, message: t("username_length_2_20"), trigger: "blur" },
   ],
   email: [
-    { required: true, message: "请输入邮箱", trigger: "blur" },
-    { type: "email", message: "请输入正确的邮箱格式", trigger: "blur" },
+    { required: true, message: t("enter_email"), trigger: "blur" },
+    { type: "email", message: t("invalid_email_format"), trigger: "blur" },
   ],
-  role: [{ required: true, message: "请选择角色", trigger: "change" }],
+  role: [{ required: true, message: t("choose_role"), trigger: "change" }],
   password: [
-    { required: true, message: "请输入密码", trigger: "blur" },
-    { min: 6, message: "密码长度不少于 6 个字符", trigger: "blur" },
+    { required: true, message: t("enter_password"), trigger: "blur" },
+    { min: 6, message: t("password_min_6"), trigger: "blur" },
   ],
 };
 
@@ -463,7 +414,7 @@ async function fetchUsers() {
     total.value = res.total || users.value.length;
   } catch (err) {
     console.error(err);
-    ElMessage.error(err.error || err.message || "获取用户列表失败");
+    ElMessage.error(err.error || err.message || t("get_user_list_failed"));
   }
 }
 
@@ -491,7 +442,7 @@ const clearSelection = () => {
 };
 
 const getRoleText = (role) => {
-  return role === "admin" ? "管理员" : "普通用户";
+  return role === "admin" ? t("admin") : t("normal_user");
 };
 
 const handleAdd = () => {
@@ -529,7 +480,7 @@ const submitUserForm = async () => {
         role: userForm.value.role,
       };
       await updateUser(userForm.value.id, payload);
-      ElMessage.success("用户信息已更新");
+      ElMessage.success(t("user_updated"));
     } else {
       const payload = {
         username: userForm.value.username,
@@ -538,7 +489,7 @@ const submitUserForm = async () => {
         password: userForm.value.password,
       };
       await createUser(payload);
-      ElMessage.success("用户添加成功");
+      ElMessage.success(t("user_added"));
     }
     showUserForm.value = false;
     await fetchUsers();
@@ -550,7 +501,7 @@ const submitUserForm = async () => {
       return;
     }
     console.error(err);
-    ElMessage.error(err.error || err.message || "保存用户失败");
+    ElMessage.error(err.error || err.message || t("save_user_failed"));
   }
 };
 
@@ -583,16 +534,16 @@ const formatDate = (iso) => {
 
 const deleteUser = (user) => {
   if (user.role === "admin" && user.id === currentUserId.value) {
-    ElMessage.warning("无法删除当前登录的管理员账户");
+    ElMessage.warning(t("cannot_delete_current_admin"));
     return;
   }
 
   ElMessageBox.confirm(
-    `确定要删除用户 "${user.username}" 吗？此操作不可恢复。`,
-    "删除确认",
+    `${t("confirm_delete_user_prefix")} "${user.username}" ${t("confirm_delete_user_suffix")}`,
+    t("delete_confirm"),
     {
-      confirmButtonText: "确定删除",
-      cancelButtonText: "取消",
+      confirmButtonText: t("confirm_delete"),
+      cancelButtonText: t("cancel"),
       type: "warning",
       customClass: "delete-confirm-box",
     },
@@ -600,12 +551,14 @@ const deleteUser = (user) => {
     .then(async () => {
       try {
         await apiDeleteUser(user.id);
-        ElMessage.success(`用户 "${user.username}" 已删除`);
+        ElMessage.success(
+          `${t("user_deleted_prefix")} "${user.username}" ${t("user_deleted_suffix")}`,
+        );
         await fetchUsers();
         await fetchStats();
       } catch (err) {
         console.error(err);
-        ElMessage.error(err.error || err.message || "删除用户失败");
+        ElMessage.error(err.error || err.message || t("delete_user_failed"));
       }
     })
     .catch(() => {});
@@ -614,11 +567,11 @@ const deleteUser = (user) => {
 const bulkDelete = () => {
   const count = selectedUsers.value.length;
   ElMessageBox.confirm(
-    `确定要删除选中的 ${count} 个用户吗？此操作不可恢复。`,
-    "批量删除确认",
+    `${t("confirm_delete_selected_prefix")} ${count} ${t("confirm_delete_selected_suffix")}`,
+    t("bulk_delete_confirm"),
     {
-      confirmButtonText: "确定删除",
-      cancelButtonText: "取消",
+      confirmButtonText: t("confirm_delete"),
+      cancelButtonText: t("cancel"),
       type: "warning",
       customClass: "delete-confirm-box",
     },
@@ -627,13 +580,15 @@ const bulkDelete = () => {
       try {
         const selectedIds = selectedUsers.value.map((u) => u.id);
         await bulkDeleteUsers(selectedIds);
-        ElMessage.success(`已删除 ${count} 个用户`);
+        ElMessage.success(
+          `${t("deleted_count_prefix")} ${count} ${t("deleted_count_suffix")}`,
+        );
         clearSelection();
         await fetchUsers();
         await fetchStats();
       } catch (err) {
         console.error(err);
-        ElMessage.error(err.error || err.message || "批量删除失败");
+        ElMessage.error(err.error || err.message || t("bulk_delete_failed"));
       }
     })
     .catch(() => {});
@@ -656,11 +611,11 @@ const exportUsers = () => {
       a.click();
       URL.revokeObjectURL(url);
       ElMessage.success(
-        `导出 ${Array.isArray(data) ? data.length : 0} 条用户数据`,
+        `${t("exported_prefix")} ${Array.isArray(data) ? data.length : 0} ${t("exported_suffix")}`,
       );
     } catch (err) {
       console.error(err);
-      ElMessage.error(err.error || err.message || "导出失败");
+      ElMessage.error(err.error || err.message || t("export_failed"));
     }
   })();
 };
@@ -673,7 +628,7 @@ const viewUser = async (user) => {
     showUserDetail.value = true;
   } catch (err) {
     console.error(err);
-    ElMessage.error(err.error || err.message || "获取用户详情失败");
+    ElMessage.error(err.error || err.message || t("get_user_detail_failed"));
   }
 };
 
@@ -1098,6 +1053,12 @@ onMounted(async () => {
 
 :deep(.delete-confirm-box .el-button--primary:hover) {
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+:deep(.btn-reset:hover) {
+  background: transparent;
+  border: 2px solid var(--accent-light);
+  color: var(--accent-2);
 }
 
 /* 响应式设计 */

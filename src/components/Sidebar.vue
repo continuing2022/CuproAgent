@@ -12,12 +12,12 @@
 
     <button class="new-chat-btn" @click="createNewConversation">
       <IconPlus width="18" height="18" />
-      <span>新建对话</span>
+      <span>{{ t("new_chat") }}</span>
     </button>
 
     <div class="conversations-list">
       <div class="list-section">
-        <div class="section-title">最近对话</div>
+        <div class="section-title">{{ t("recent_chats") }}</div>
         <div
           v-for="conv in conversations"
           :key="conv.id"
@@ -50,6 +50,7 @@
 import { ref, toRefs } from "vue";
 import UserProfile from "./userProfile.vue";
 import { IconClose, IconPlus, IconChat, IconTrash } from "./icons";
+import { t } from "@/i18n";
 const props = defineProps({
   sidebarOpen: Boolean,
   conversations: Array,
@@ -60,7 +61,7 @@ const props = defineProps({
   setCurrentConvId: Function,
   formatTime: Function,
 });
-const username = ref(localStorage.getItem("username") || "用户");
+const username = ref(localStorage.getItem("username") || t("default_user"));
 // 使用 toRefs 保持 prop 响应性（避免解构丢失响应）
 const {
   sidebarOpen,

@@ -12,27 +12,27 @@
           <div class="logo-circle">CU</div>
           <h1 class="brand-title">CuproAgent</h1>
         </div>
-        <p class="brand-desc">智能助手 · 私有化部署友好</p>
+        <p class="brand-desc">{{ t("brand_desc") }}</p>
         <div class="feature-list">
           <div class="feature-item">
             <div class="feature-icon">🤖</div>
             <div class="feature-text">
-              <h3>智能对话</h3>
-              <p>自然流畅的AI交互体验</p>
+              <h3>{{ t("feature_chat_title") }}</h3>
+              <p>{{ t("feature_chat_desc") }}</p>
             </div>
           </div>
           <div class="feature-item">
             <div class="feature-icon">🔒</div>
             <div class="feature-text">
-              <h3>隐私安全</h3>
-              <p>企业级数据加密保护</p>
+              <h3>{{ t("feature_privacy_title") }}</h3>
+              <p>{{ t("feature_privacy_desc") }}</p>
             </div>
           </div>
           <div class="feature-item">
             <div class="feature-icon">⚡</div>
             <div class="feature-text">
-              <h3>极速推理</h3>
-              <p>Agent智能问答实时解析</p>
+              <h3>{{ t("feature_speed_title") }}</h3>
+              <p>{{ t("feature_speed_desc") }}</p>
             </div>
           </div>
         </div>
@@ -42,9 +42,9 @@
       <div class="form-section">
         <div class="form-card">
           <div class="form-header">
-            <h2>{{ isLogin ? "欢迎回来" : "创建账号" }}</h2>
+            <h2>{{ isLogin ? t("welcome_back") : t("create_account") }}</h2>
             <p>
-              {{ isLogin ? "登录继续使用 CuproAgent" : "开始您的智能助手之旅" }}
+              {{ isLogin ? t("login_continue_desc") : t("start_journey_desc") }}
             </p>
           </div>
 
@@ -58,7 +58,7 @@
                   name="username"
                   v-model="formData.username"
                   @input="handleInputChange"
-                  placeholder="请输入用户名"
+                  :placeholder="t('placeholder_username')"
                 />
               </div>
               <span class="error-text" v-if="errors.username">{{
@@ -73,7 +73,7 @@
                   name="email"
                   v-model="formData.email"
                   @input="handleInputChange"
-                  placeholder="请输入邮箱地址"
+                  :placeholder="t('placeholder_email')"
                 />
               </div>
               <span class="error-text" v-if="errors.email">{{
@@ -88,7 +88,7 @@
                   name="password"
                   v-model="formData.password"
                   @input="handleInputChange"
-                  placeholder="请输入密码"
+                  :placeholder="t('placeholder_password')"
                 />
                 <button
                   type="button"
@@ -113,7 +113,7 @@
                   name="confirmPassword"
                   v-model="formData.confirmPassword"
                   @input="handleInputChange"
-                  placeholder="请再次输入密码"
+                  :placeholder="t('placeholder_confirm_password')"
                 />
               </div>
               <span class="error-text" v-if="errors.confirmPassword">{{
@@ -124,35 +124,35 @@
             <div class="form-options" v-if="isLogin">
               <label class="remember-me">
                 <input type="checkbox" />
-                <span>记住我</span>
+                <span>{{ t("remember_me") }}</span>
               </label>
-              <a href="#" class="forgot-link">忘记密码？</a>
+              <a href="#" class="forgot-link">{{ t("forgot_password") }}</a>
             </div>
             <button type="submit" class="submit-btn" :disabled="isLoading">
               <template v-if="isLoading">
                 <span class="loading-spinner"></span>
               </template>
               <template v-else>
-                <span>{{ isLogin ? "登录" : "注册" }}</span>
+                <span>{{ isLogin ? t("login") : t("register") }}</span>
                 <ArrowRight size="18" />
               </template>
             </button>
           </form>
 
           <div class="switch-mode">
-            {{ isLogin ? "还没有账号？" : "已有账号？" }}
+            {{ isLogin ? t("no_account") : t("has_account") }}
             <button type="button" @click="switchMode" class="switch-btn">
-              {{ isLogin ? "立即注册" : "立即登录" }}
+              {{ isLogin ? t("register_now") : t("login_now") }}
             </button>
           </div>
         </div>
 
         <div class="form-footer">
-          <p>继续使用即表示您同意我们的</p>
+          <p>{{ t("agree_terms_prefix") }}</p>
           <div class="footer-links">
-            <a href="#">服务条款</a>
+            <a href="#">{{ t("terms_of_service") }}</a>
             <span>·</span>
-            <a href="#">隐私政策</a>
+            <a href="#">{{ t("privacy_policy") }}</a>
           </div>
         </div>
       </div>
@@ -164,6 +164,7 @@ import { ref, reactive } from "vue";
 import router from "@/router";
 import { userLogin, userRegister } from "@/api";
 import { ElMessage } from "element-plus";
+import { t } from "@/i18n";
 import {
   Mail,
   Lock,
@@ -198,26 +199,26 @@ const validateForm = () => {
   const newErrors = {};
 
   if (!isLogin.value && !formData.username.trim()) {
-    newErrors.username = "请输入用户名";
+    newErrors.username = t("err_enter_username");
   }
 
   if (!formData.email.trim()) {
-    newErrors.email = "请输入邮箱";
+    newErrors.email = t("err_enter_email");
   } else if (!validateEmail(formData.email)) {
-    newErrors.email = "请输入有效的邮箱地址";
+    newErrors.email = t("err_invalid_email");
   }
 
   if (!formData.password) {
-    newErrors.password = "请输入密码";
+    newErrors.password = t("err_enter_password");
   } else if (formData.password.length < 6) {
-    newErrors.password = "密码至少需要6位字符";
+    newErrors.password = t("err_password_too_short");
   }
 
   if (!isLogin.value) {
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "请确认密码";
+      newErrors.confirmPassword = t("err_confirm_password");
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "两次输入的密码不一致";
+      newErrors.confirmPassword = t("err_password_not_match");
     }
   }
 
@@ -250,7 +251,7 @@ const handleSubmit = async (e) => {
       if (userName) localStorage.setItem("username", userName);
       if (email) localStorage.setItem("email", email);
       if (role) localStorage.setItem("role", role);
-      ElMessage.success("登录成功");
+      ElMessage.success(t("login_success"));
       router.push({ name: "Home" });
     } else {
       const payload = {
@@ -269,7 +270,7 @@ const handleSubmit = async (e) => {
       } else if (err.message) {
         ElMessage.warning(err.message);
       } else {
-        ElMessage.warning("请求出错，请稍后重试");
+        ElMessage.warning(t("request_error_retry"));
       }
     } else {
       ElMessage.warning(String(err));
