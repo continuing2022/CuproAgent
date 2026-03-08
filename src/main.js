@@ -6,12 +6,15 @@ import "element-plus/dist/index.css";
 import "./styles/element-overrides.css";
 import { ElMessage } from "element-plus";
 import i18n, { t } from "@/i18n";
+import { setupIdleLogout } from "@/utils/idleLogout";
 
 const app = createApp(App);
 app.use(router);
 app.use(ElementPlus);
 app.use(i18n);
 app.mount("#app");
+
+setupIdleLogout(router, { idleMs: 5 * 60 * 1000 });
 
 // 全局 token 监听：检测其它标签页的 localStorage 变化以及同页面的 token 被清除
 let _prevToken = localStorage.getItem("token");

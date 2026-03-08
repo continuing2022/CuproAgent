@@ -1,5 +1,9 @@
 {
   "token_invalid": "token失效，请重新登录",
+  "idle_warning_message": "您已超过 5 分钟未操作，{seconds} 秒后将自动退出登录。",
+  "idle_warning_title": "登录状态提醒",
+  "idle_auto_logout": "长时间未操作，已自动退出登录",
+  "idle_continue": "继续会话",
   "confirm_logout": "确定要退出登录吗？",
   "warning": "警告",
   "ok": "确定",

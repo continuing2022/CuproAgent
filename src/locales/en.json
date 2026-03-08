@@ -1,5 +1,9 @@
 {
   "token_invalid": "Token expired, please log in again",
+  "idle_warning_message": "You have been inactive for over 5 minutes. You will be logged out automatically in {seconds} seconds.",
+  "idle_warning_title": "Session Reminder",
+  "idle_auto_logout": "You have been inactive for too long and were logged out automatically",
+  "idle_continue": "Continue Session",
   "confirm_logout": "Are you sure you want to log out?",
   "warning": "Warning",
   "ok": "OK",

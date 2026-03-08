@@ -62,13 +62,6 @@
             </div>
             <div class="message-content">
               <div v-html="renderContent(msg.content)"></div>
-              <!-- <span
-                v-if="
-                  msg.role === 'assistant' && streamingMsgId === msg._tempId
-                "
-                class="cursor"
-                >|</span
-              > -->
             </div>
           </div>
           <div ref="messagesEndRef"></div>
