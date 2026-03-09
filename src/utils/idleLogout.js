@@ -1,6 +1,6 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { t } from "@/i18n";
-
+import { userLogout } from "@/api";
 const DEFAULT_IDLE_MS = 5 * 60 * 1000;
 const DEFAULT_WARN_MS = 30 * 1000;
 const ACTIVITY_EVENTS = [
@@ -14,11 +14,16 @@ const ACTIVITY_EVENTS = [
 export function setupIdleLogout(router, options = {}) {
   const idleMs = options.idleMs ?? DEFAULT_IDLE_MS;
   const warnMs = options.warnMs ?? DEFAULT_WARN_MS;
+  const channel = new BroadcastChannel("activity_channel");
 
   let idleTimer = null;
   let autoLogoutTimer = null;
   let warningVisible = false;
   let loggingOut = false;
+
+  const broadcastActivity = () => {
+    channel.postMessage({ type: "activity", at: Date.now() });
+  };
 
   const clearTimers = () => {
     if (idleTimer) {
@@ -32,20 +37,19 @@ export function setupIdleLogout(router, options = {}) {
   };
   // 只有在有 token 且不在 Login 页时才跟踪用户活动
   const shouldTrack = () => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("accessToken");
     const currentRoute = router.currentRoute.value;
     return Boolean(token) && currentRoute?.name !== "Login";
   };
 
-  const logout = () => {
+  const logout = async () => {
     if (loggingOut) return;
     loggingOut = true;
 
     clearTimers();
     warningVisible = false;
     ElMessageBox.close();
-
-    localStorage.removeItem("token");
+    await userLogout();
     ElMessage.warning(t("idle_auto_logout"));
     if (router.currentRoute.value?.name !== "Login") {
       router.push({ name: "Login" });
@@ -56,6 +60,7 @@ export function setupIdleLogout(router, options = {}) {
       loggingOut = false;
     }, 0);
   };
+
   // 重置 idle 定时器，显示警告框后如果用户继续操作则取消自动登出
   const resetIdleTimer = () => {
     if (!shouldTrack()) {
@@ -96,11 +101,23 @@ export function setupIdleLogout(router, options = {}) {
   };
 
   const handleActivity = () => {
+    // 弹窗出现后，必须显式点“继续会话”或“退出登录”，活动事件不再自动续期
+    if (warningVisible) return;
     resetIdleTimer();
   };
 
+  const onLocalActivity = () => {
+    broadcastActivity();
+    handleActivity();
+  };
+
+  channel.onmessage = (event) => {
+    if (event.data.type === "activity") {
+      handleActivity();
+    }
+  };
   ACTIVITY_EVENTS.forEach((event) => {
-    window.addEventListener(event, handleActivity, { passive: true });
+    window.addEventListener(event, onLocalActivity, { passive: true });
   });
   // 路由切换
   router.afterEach(() => {
@@ -111,8 +128,10 @@ export function setupIdleLogout(router, options = {}) {
 
   return () => {
     clearTimers();
+    channel.onmessage = null;
+    channel.close();
     ACTIVITY_EVENTS.forEach((event) => {
-      window.removeEventListener(event, handleActivity);
+      window.removeEventListener(event, onLocalActivity);
     });
   };
 }

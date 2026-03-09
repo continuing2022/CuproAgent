@@ -84,6 +84,7 @@ import { ref, computed } from "vue";
 import { User, Sparkles, Settings, HelpCircle, LogOut } from "lucide-vue-next";
 import router from "@/router";
 import UserDetailDialog from "@/components/UserDetailDialog.vue";
+import { userLogout } from "@/api";
 import { t, locale, setLocale } from "@/i18n";
 // 控制下拉菜单显隐
 const isOpen = ref(false);
@@ -107,17 +108,16 @@ const userTier = computed(() =>
 );
 
 // 退出登录方法
-const handleLogout = () => {
+const handleLogout = async () => {
   ElMessageBox.confirm(t("confirm_logout"), t("warning"), {
     confirmButtonText: t("ok"),
     cancelButtonText: t("cancel"),
     type: "warning",
     customClass: "logout-confirm-box",
   })
-    .then(() => {
-      localStorage.removeItem("username");
-      localStorage.removeItem("token");
-      localStorage.removeItem("email");
+    .then(async () => {
+      // 调用 API 退出登录
+      await userLogout();
       // 刷新页面或重定向到登录页
       window.location.reload();
     })

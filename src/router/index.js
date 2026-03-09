@@ -25,7 +25,7 @@ const router = createRouter({
 
 // 全局路由守卫：无 token 跳转到 Login，有 token 访问 Login 则重定向到 Home
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("accessToken");
   if (!token && to.name !== "Login") {
     return next({ name: "Login" });
   }

@@ -243,11 +243,13 @@ const handleSubmit = async (e) => {
         password: formData.password,
       };
       const res = await userLogin(payload);
-      const token = res?.token;
+      const accessToken = res.token.accessToken;
+      const refreshToken = res.token.refreshToken;
       const userName = res.user.username;
       const email = res.user.email;
       const role = res.user.role;
-      if (token) localStorage.setItem("token", token);
+      if (accessToken) localStorage.setItem("accessToken", accessToken);
+      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
       if (userName) localStorage.setItem("username", userName);
       if (email) localStorage.setItem("email", email);
       if (role) localStorage.setItem("role", role);

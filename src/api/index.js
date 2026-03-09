@@ -1,5 +1,7 @@
 import axios from "axios";
 
+let isRefreshing = false;
+let pendingRequests = [];
 const api = axios.create({
   baseURL: "http://127.0.0.1:3000",
   timeout: 10000,
@@ -11,20 +13,69 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.data) {
-      return Promise.reject(error.response.data);
+    const originalRequest = error.config;
+    const status = error.response ? error.response.status : null;
+    if (status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true; // 防止死循环
+
+      // 并发请求排队，当正在刷新时返回一个承诺，刷新完成后重试
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          const retry = (token) => {
+            if (!originalRequest.headers) originalRequest.headers = {};
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          };
+          const fail = (err) => reject(err);
+          pendingRequests.push({ retry, fail });
+        });
+      }
+      // 开始刷新流程
+      isRefreshing = true;
+      return new Promise(async (resolve, reject) => {
+        try {
+          const data = await refreshToken();
+          const newAccessToken = data.accessToken;
+          if (!newAccessToken)
+            throw new Error("No access token returned from refresh");
+          localStorage.setItem("accessToken", newAccessToken);
+          // 更新默认 headers，重试当前请求
+          api.defaults.headers = api.defaults.headers || {};
+          api.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
+          if (!originalRequest.headers) originalRequest.headers = {};
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          // 处理排队的请求
+          pendingRequests.forEach(({ retry }) => retry(newAccessToken));
+          pendingRequests = [];
+          resolve(api(originalRequest));
+        } catch (err) {
+          // 刷新失败：拒绝所有排队请求并登出
+          pendingRequests.forEach(({ fail }) => fail(err));
+          pendingRequests = [];
+          try {
+            await userLogout();
+          } catch (e) {}
+          reject(err);
+        } finally {
+          isRefreshing = false;
+        }
+      });
     }
-    return Promise.reject({ message: error.message || "Network Error" });
+    return Promise.reject(
+      error.response
+        ? error.response.data || error
+        : { message: error.message || "Network Error" },
+    );
   },
 );
 
 // 在请求头中注入 token（如果存在）
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
       config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -38,6 +89,23 @@ export async function userLogin(payload) {
 
 export async function userRegister(payload) {
   const res = await api.post("/auth/register", payload);
+  return res.data;
+}
+export async function userLogout() {
+  const refreshToken = localStorage.getItem("refreshToken");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("username");
+  localStorage.removeItem("email");
+  localStorage.removeItem("role");
+  const res = await api.post("/auth/logout", { refreshToken });
+  return res.data;
+}
+// 刷新 token，获取新的 accessToken 和 refreshToken
+export async function refreshToken() {
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) throw new Error("No refresh token available");
+  const res = await api.post("/auth/refresh", { refreshToken });
   return res.data;
 }
 // -------- 用户管理 API --------
