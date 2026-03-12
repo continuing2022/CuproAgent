@@ -2,9 +2,9 @@
   <el-dialog
     v-model="visible"
     :title="t('user_detail')"
-    width="600px"
+    :width="dialogWidth"
     :close-on-click-modal="false"
-    class="user-detail-dialog"
+    custom-class="user-detail-dialog"
   >
     <div v-if="loading" class="loading">{{ t("loading") }}</div>
 
@@ -26,7 +26,7 @@
       <el-divider />
 
       <div class="detail-info-section">
-        <el-descriptions column="2" border>
+        <el-descriptions :column="descColumn" border>
           <el-descriptions-item :label="t('username')">{{
             userData.username
           }}</el-descriptions-item>
@@ -60,7 +60,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { getCurrentUser, getUserById } from "@/api";
 import { t } from "@/i18n";
 
@@ -95,6 +95,26 @@ const avatarLetter = computed(() => {
   const name =
     (userData.value && (userData.value.username || userData.value.name)) || "";
   return name ? String(name).charAt(0).toUpperCase() : "";
+});
+
+const dialogWidth = ref("600px");
+const descColumn = ref(2);
+function updateDialogWidth() {
+  try {
+    const isSmall = window.innerWidth <= 640;
+    dialogWidth.value = isSmall ? "95%" : "600px";
+    descColumn.value = isSmall ? 1 : 2;
+  } catch (e) {
+    dialogWidth.value = "600px";
+    descColumn.value = 2;
+  }
+}
+onMounted(() => {
+  updateDialogWidth();
+  window.addEventListener("resize", updateDialogWidth);
+});
+onUnmounted(() => {
+  window.removeEventListener("resize", updateDialogWidth);
 });
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -162,6 +182,11 @@ async function loadUser() {
 }
 .detail-info-section {
   margin-top: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.detail-info-section .el-descriptions {
+  min-width: 360px;
 }
 .dialog-footer {
   display: flex;
@@ -178,5 +203,34 @@ async function loadUser() {
   transition: background-color 0.2s ease;
   cursor: pointer;
   border: none;
+}
+/* 媒体查询 */
+@media (max-width: 640px) {
+  :deep(.user-detail-dialog) {
+    max-width: 95% !important;
+  }
+  .avatar-lg {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1rem;
+  }
+  .detail-username {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+  }
+  .detail-info-section .el-descriptions {
+    min-width: 280px;
+  }
+  :deep(.el-descriptions__label) {
+    font-size: 0.85rem;
+    white-space: normal;
+  }
+  :deep(.el-descriptions__content) {
+    font-size: 0.95rem;
+    white-space: normal;
+  }
+  :deep(.close-btn) {
+    padding: 6px 12px;
+  }
 }
 </style>

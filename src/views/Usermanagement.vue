@@ -169,7 +169,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('actions')" width="240" fixed="right">
+        <el-table-column :label="t('actions')" width="200" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -250,7 +250,7 @@
     <el-dialog
       v-model="showUserForm"
       :title="isEditing ? t('edit_user') : t('add_user')"
-      width="500px"
+      :width="formDialogWidth"
       :close-on-click-modal="false"
       class="user-form-dialog"
     >
@@ -258,7 +258,8 @@
         :model="userForm"
         :rules="userFormRules"
         ref="userFormRef"
-        label-width="100px"
+        :label-width="formLabelWidth"
+        :label-position="formLabelPosition"
       >
         <el-form-item :label="t('username')" prop="username">
           <el-input
@@ -301,7 +302,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -344,6 +345,34 @@ const selectedUser = ref(null);
 const currentUserId = ref(1); // 当前登录用户ID
 const isEditing = ref(false);
 const userFormRef = ref(null);
+
+// 表单对话框响应式设置
+const formDialogWidth = ref("500px");
+const formLabelWidth = ref("100px");
+const formLabelPosition = ref("right");
+
+function updateFormDialogWidth() {
+  try {
+    const w = window.innerWidth;
+    if (w <= 480) {
+      formDialogWidth.value = "95%";
+      formLabelPosition.value = "top";
+      formLabelWidth.value = "100%";
+    } else if (w <= 640) {
+      formDialogWidth.value = "90%";
+      formLabelPosition.value = "top";
+      formLabelWidth.value = "100px";
+    } else {
+      formDialogWidth.value = "500px";
+      formLabelPosition.value = "right";
+      formLabelWidth.value = "100px";
+    }
+  } catch (e) {
+    formDialogWidth.value = "500px";
+    formLabelPosition.value = "right";
+    formLabelWidth.value = "100px";
+  }
+}
 
 // 用户表单数据
 const userForm = ref({
@@ -636,6 +665,12 @@ onMounted(async () => {
   await fetchCurrentUser();
   await fetchUsers();
   await fetchStats();
+  updateFormDialogWidth();
+  window.addEventListener("resize", updateFormDialogWidth);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", updateFormDialogWidth);
 });
 </script>
 
@@ -1106,6 +1141,30 @@ onMounted(async () => {
   .bulk-buttons {
     width: 100%;
     flex-direction: column;
+  }
+}
+
+/* 优化添加/编辑对话框的移动端展示 */
+:deep(.user-form-dialog) {
+  border-radius: 1rem;
+}
+
+@media (max-width: 640px) {
+  :deep(.user-form-dialog) {
+    max-width: 95% !important;
+    margin: 1rem !important;
+  }
+  :deep(.user-form-dialog .el-form--label-top .el-form-item__label) {
+    padding-bottom: 0.5rem;
+  }
+  :deep(.user-form-dialog .el-form-item__content) {
+    padding-left: 0;
+  }
+  :deep(.user-form-dialog .el-form-item) {
+    margin-bottom: 0.75rem;
+  }
+  :deep(.user-form-dialog .dialog-footer .el-button) {
+    padding: 6px 12px;
   }
 }
 </style>

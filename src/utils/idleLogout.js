@@ -1,7 +1,7 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { t } from "@/i18n";
 import { userLogout } from "@/api";
-const DEFAULT_IDLE_MS = 5 * 60 * 1000;
+const DEFAULT_IDLE_MS = 30 * 60 * 1000;
 const DEFAULT_WARN_MS = 30 * 1000;
 const ACTIVITY_EVENTS = [
   "mousemove",

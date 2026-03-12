@@ -425,6 +425,7 @@ body {
   height: 100vh;
   background: #fffbf5;
   color: #2d2d2d;
+  overflow: hidden;
 }
 /* 主聊天区域 */
 .chat-main {

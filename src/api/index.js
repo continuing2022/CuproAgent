@@ -178,7 +178,7 @@ export function sendMessageStream(
         "Content-Type": "application/json",
       };
       // 设置 Authorization 头
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken");
       if (token) headers.Authorization = `Bearer ${token}`;
 
       const res = await fetch(api.defaults.baseURL + "/conversations", {
