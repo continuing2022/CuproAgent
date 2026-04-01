@@ -160,6 +160,12 @@ const {
   flex: 1;
   overflow-y: auto;
   padding: 0 12px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.conversations-list::-webkit-scrollbar {
+  display: none;
 }
 
 .list-section {
