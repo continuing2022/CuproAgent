@@ -203,3 +203,165 @@
 :root .el-select .el-input__inner * {
   color: var(--primary-yellow-dark) !important;
 }
+
+/* Home input Element overrides */
+.oragen-container .input-wrapper .input-toolbar {
+  display: grid;
+  grid-template-columns: 220px auto;
+  align-items: center;
+  justify-content: start;
+  gap: 12px;
+}
+
+.oragen-container .input-wrapper .model-select {
+  width: 220px;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-select {
+  width: 100%;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-select__wrapper {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: #fff8f1;
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 92, 0.26);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-select__wrapper:hover {
+  background: #fff8f1;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 156, 58, 0.38),
+    0 6px 14px rgba(255, 140, 0, 0.08);
+}
+
+.oragen-container
+  .input-wrapper
+  .input-toolbar
+  .el-select.is-focus
+  .el-select__wrapper,
+.oragen-container
+  .input-wrapper
+  .input-toolbar
+  .el-select__wrapper.is-focused,
+.oragen-container
+  .input-wrapper
+  .input-toolbar
+  .is-focused
+  .el-select__wrapper {
+  background: #fff8f2;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 140, 0, 0.48),
+    0 0 0 3px rgba(255, 186, 102, 0.14);
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-select__selection {
+  min-width: 0;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-select__selected-item,
+.oragen-container .input-wrapper .input-toolbar .el-select__input,
+.oragen-container .input-wrapper .input-toolbar .el-select__placeholder {
+  color: #8e531f !important;
+  font-weight: 600;
+  padding-left: 2px;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-select__caret {
+  color: #de8a34;
+  margin-left: 8px;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch {
+  min-width: 112px;
+  height: 44px;
+  padding: 0 12px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fffaf6 0%, #fff1e1 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 92, 0.28);
+  white-space: nowrap;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch__label {
+  display: none;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch::after {
+  content: "本地";
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  color: #a56a34;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch.is-checked::after {
+  content: "联网";
+  color: #c76a00;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch__core {
+  min-width: 38px;
+  width: 38px;
+  height: 22px;
+  border: none;
+  border-radius: 999px;
+  background: #ffd8aa;
+  box-shadow: none;
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch__core .el-switch__action {
+  width: 16px;
+  height: 16px;
+  top: 3px;
+  box-shadow: 0 2px 8px rgba(149, 88, 22, 0.18);
+}
+
+.oragen-container .input-wrapper .input-toolbar .el-switch.is-checked .el-switch__core,
+.oragen-container .input-wrapper .input-toolbar .is-checked .el-switch__core {
+  background: linear-gradient(135deg, #ffb14a 0%, #ff8c00 100%);
+  box-shadow: none;
+}
+
+.model-select-popper {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 166, 77, 0.18);
+  box-shadow: 0 12px 28px rgba(255, 140, 0, 0.12);
+  overflow: hidden;
+}
+
+.model-select-popper .el-select-dropdown__item {
+  padding: 0 16px;
+  color: #6f5a46;
+  font-weight: 500;
+}
+
+.model-select-popper .el-select-dropdown__item.is-hovering,
+.model-select-popper .el-select-dropdown__item:hover {
+  background: #fff7ed;
+  color: #9a5413;
+}
+
+.model-select-popper .el-select-dropdown__item.is-selected {
+  background: #fff1df;
+  color: #f08a00;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .oragen-container .input-wrapper .input-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .oragen-container .input-wrapper .model-select {
+    width: 100%;
+  }
+
+  .oragen-container .input-wrapper .input-toolbar .el-switch {
+    justify-self: start;
+  }
+}

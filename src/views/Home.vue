@@ -14,7 +14,7 @@
       />
     </transition>
 
-    <!-- 主聊天区域 -->
+    <!-- 主聊天区?-->
     <main class="chat-main">
       <header class="chat-header">
         <button v-if="!sidebarOpen" class="menu-btn" @click="toggle()">
@@ -70,21 +70,53 @@
 
       <div class="input-container">
         <div class="input-wrapper">
-          <textarea
-            ref="textareaRef"
-            v-model="input"
-            @keydown="handleKeyDown"
-            :placeholder="t('input_placeholder')"
-            rows="1"
-            :disabled="isStreaming"
-          ></textarea>
-          <button
-            class="send-btn"
-            @click="handleSend"
-            :disabled="!input.trim() || isStreaming"
-          >
-            <IconSend />
-          </button>
+          <div class="input-toolbar">
+            <el-select
+              v-model="modelName"
+              placeholder="选择模型"
+              size="small"
+              class="model-select"
+              popper-class="model-select-popper"
+            >
+              <el-option label="Qwen-plus" value="qwen-plus" />
+              <el-option label="Qwen-math-turbo" value="qwen-math-turbo" />
+              <el-option label="Qwen-max" value="qwen-max" />
+              <el-option label="Kimi-K2.5" value="kimi-k2.5" />
+            </el-select>
+
+            <el-switch
+              v-model="useNetwork"
+              active-text="联网"
+              inactive-text="本地"
+              size="small"
+            />
+          </div>
+          <div class="input-main">
+            <textarea
+              ref="textareaRef"
+              v-model="input"
+              @keydown="handleKeyDown"
+              :placeholder="t('input_placeholder')"
+              rows="1"
+              :disabled="isStreaming"
+            ></textarea>
+            <button
+              v-if="isStreaming"
+              class="stop-btn"
+              @click="handleAbort"
+              title="中断"
+            >
+              <IconStop />
+            </button>
+            <button
+              v-else
+              class="send-btn"
+              @click="handleSend"
+              :disabled="!input.trim() || isStreaming"
+            >
+              <IconSend />
+            </button>
+          </div>
         </div>
         <div class="input-hint">{{ t("input_hint") }}</div>
       </div>
@@ -102,7 +134,7 @@ import {
   getMessages,
   deleteConversation as apiDeleteConversation,
 } from "@/api";
-import { IconMenu, IconSend } from "../components/icons";
+import { IconMenu, IconSend, IconStop } from "../components/icons";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { t, locale } from "@/i18n";
@@ -121,16 +153,20 @@ const renderContent = (text) => {
     return DOMPurify.sanitize(String(text || ""));
   }
 };
-// 响应式数据
+// 响应式数?
 const input = ref("");
 const isStreaming = ref(false);
+const useNetwork = ref(false);
+const modelName = ref("qwen-plus");
 const sidebarOpen = ref(true);
 const collapsed = ref(false);
 const currentConvId = ref(null);
 const textareaRef = ref(null);
 const messagesEndRef = ref(null);
-// 当前正在流式输出的消息临时 id（用于只在该消息显示光标）
+// 当前正在流式输出的消息临?id（用于只在该消息显示光标?
 const streamingMsgId = ref(null);
+// 当前活动的流对象（用于中断）
+const currentStream = ref(null);
 
 function toggle() {
   collapsed.value = !collapsed.value;
@@ -144,7 +180,7 @@ function toggle() {
   }
 }
 
-// setter helpers 供 Sidebar 组件通过 props 调用以保持父级状态
+// setter helpers ?Sidebar 组件通过 props 调用以保持父级状?
 const setSidebarOpen = (v) => (sidebarOpen.value = v);
 // 设置当前对话 ID 并加载对应消息
 const setCurrentConvId = async (v) => {
@@ -165,7 +201,7 @@ const setCurrentConvId = async (v) => {
 // 对话列表
 const conversations = reactive([]);
 
-// 计算当前选中的对话
+// 计算当前选中的对?
 const currentConv = ref([]);
 
 // 监听消息变化，自动滚动到底部
@@ -188,7 +224,7 @@ watch(input, () => {
   }
 });
 
-// 发送消息处理函数
+// 发送消息处理函?
 const handleSend = async () => {
   if (!input.value.trim() || isStreaming.value) return;
   const content = input.value.trim();
@@ -200,19 +236,22 @@ const handleSend = async () => {
     currentConv.value.push({ role: "user", content, _tempId: makeTempId() });
     const conv = conversations.find((c) => c.id === currentConvId.value);
     let payload = { content };
+    // include user-selected model and optional network search config
+    payload.model = modelName.value || "qwen-plus";
+    if (useNetwork.value) payload.networkConfig = { search: true };
     if (!conv || !conv._local) {
       payload.conversation_id = currentConvId.value;
     } else {
       payload.title = content.slice(0, 15) || conv.title;
     }
 
-    // 先添加一个空的 assistant 占位，用于流式追加
+    // 先添加一个空?assistant 占位，用于流式追?
     const assistantMsg = {
       role: "assistant",
       content: "",
       _tempId: makeTempId(),
     };
-    // 标记当前正在流式的消息 id（模板中只在该消息显示光标）
+    // 标记当前正在流式的消?id（模板中只在该消息显示光标）
     streamingMsgId.value = assistantMsg._tempId;
     currentConv.value.push(assistantMsg);
 
@@ -231,7 +270,7 @@ const handleSend = async () => {
             return msg;
           });
         } else if (data && data.started) {
-          // 后端通知已开始并返回 conversation_id（用于本地 _local 会话）
+          // 后端通知已开始并返回 conversation_id（用于本?_local 会话?
           const newConvId = data.conversation_id;
           if (conv && conv._local && newConvId) {
             conv.id = newConvId;
@@ -260,16 +299,21 @@ const handleSend = async () => {
         // 清除流式标记
         streamingMsgId.value = null;
         isStreaming.value = false;
+        currentStream.value = null;
       },
       onError(err) {
         console.error("sendMessageStream error:", err);
         // 清除流式标记
         streamingMsgId.value = null;
         isStreaming.value = false;
+        currentStream.value = null;
       },
     });
 
-    // 如果需要在将来支持中断：stream.abort()
+    // 保存当前流对象以便可以中?
+    currentStream.value = stream;
+
+    // 如果需要在将来支持中断，可以调用：currentStream.value.abort()
   } catch (e) {
     console.error("sendMessage error:", e);
     isStreaming.value = false;
@@ -284,7 +328,31 @@ const handleKeyDown = (e) => {
   }
 };
 
-// 对话列表初始化（兼容后端直接返回数组或 { items: [] }）
+// 中断当前流并做清?
+const handleAbort = () => {
+  const tempId = streamingMsgId.value;
+  if (currentStream.value && typeof currentStream.value.abort === "function") {
+    try {
+      currentStream.value.abort();
+    } catch (e) {
+      console.error("abort error:", e);
+    }
+  }
+  // 在流式消息上追加已中断提?
+  if (tempId) {
+    currentConv.value = currentConv.value.map((msg) => {
+      if (msg._tempId === tempId) {
+        return { ...msg, content: (msg.content || "") + "（已中断）" };
+      }
+      return msg;
+    });
+  }
+  streamingMsgId.value = null;
+  isStreaming.value = false;
+  currentStream.value = null;
+};
+
+// 对话列表初始化（兼容后端直接返回数组?{ items: [] }?
 const initConversations = async () => {
   try {
     const res = await getConversations();
@@ -318,7 +386,7 @@ onMounted(() => {
 
 // 创建新对话（在前端先创建本地临时会话，发送第一条消息时同步到后端）
 const createNewConversation = () => {
-  // 判断当前是否存在本地未同步会话
+  // 判断当前是否存在本地未同步会?
   const hasLocal = conversations.some((c) => c._local);
   if (hasLocal) {
     // 切换到该会话
@@ -348,7 +416,7 @@ const deleteConversation = async (conv) => {
     if (index !== undefined) {
       // 删除会话
       conversations.splice(index, 1);
-      // 如果删除的是当前会话，切换到第一个会话
+      // 如果删除的是当前会话，切换到第一个会?
       if (currentConvId.value === conv.id) {
         currentConvId.value = conversations[0].id;
         setCurrentConvId(currentConvId.value);
@@ -371,7 +439,7 @@ const deleteConversation = async (conv) => {
   }
 };
 
-// 格式化时间
+// 格式化时?
 const formatTime = (timestamp) => {
   const now = Date.now();
   const diff = now - timestamp;
@@ -393,7 +461,7 @@ const nextTick = (callback) => {
   Promise.resolve().then(callback);
 };
 
-// watch 去监听 conversations 的长度 如果等于0 便创建一个新的对话
+// watch 去监?conversations 的长?如果等于0 便创建一个新的对?
 watch(
   () => conversations.length,
   (newLength) => {
@@ -427,7 +495,7 @@ body {
   color: #2d2d2d;
   overflow: hidden;
 }
-/* 主聊天区域 */
+/* 主聊天区?*/
 .chat-main {
   flex: 1;
   display: flex;
@@ -634,60 +702,91 @@ body {
 }
 
 .input-container {
-  padding: 24px;
+  padding: 16px 20px;
   border-top: 1px solid rgba(255, 140, 0, 0.1);
+  background: #fafafa;
 }
 
+/* 整体卡片 */
 .input-wrapper {
   max-width: 800px;
   margin: 0 auto;
   display: flex;
-  gap: 12px;
-  align-items: center;
-  background: white;
+  flex-direction: column;
+  gap: 10px;
+
+  background: #fff;
   border: 2px solid rgba(255, 140, 0, 0.2);
   border-radius: 16px;
-  padding: 12px 16px;
-  transition: border-color 0.2s;
+  padding: 12px;
+
+  transition: all 0.2s;
 }
 
 .input-wrapper:focus-within {
   border-color: #ffb84d;
+  box-shadow: 0 4px 16px rgba(255, 140, 0, 0.1);
 }
 
-.input-wrapper textarea {
+/* ?工具?*/
+.input-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 模型选择宽度 */
+.model-select {
+  width: 140px;
+}
+
+/* ?输入?*/
+.input-main {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* textarea */
+.input-main textarea {
   flex: 1;
   border: none;
   outline: none;
   resize: none;
   font-size: 15px;
-  font-family: inherit;
-  line-height: 1.5;
+  line-height: 1.6;
+  padding: 8px 0;
   color: #2d2d2d;
+  background: transparent;
 }
 
-.input-wrapper textarea::placeholder {
-  color: #999;
+/* placeholder */
+.input-main textarea::placeholder {
+  color: #aaa;
 }
 
+/* 发送按?*/
 .send-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   border: none;
+
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
+
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+
   transition: all 0.2s;
-  flex-shrink: 0;
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.3);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 6px 14px rgba(255, 140, 0, 0.3);
 }
 
 .send-btn:disabled {
@@ -702,17 +801,28 @@ body {
   margin-top: 12px;
 }
 
-.sidebar-enter-from,
-.sidebar-leave-to {
-  transform: translateX(-100%);
+.stop-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: white;
+  color: #ff8c00;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 140, 0, 0.15);
 }
 
-.sidebar-enter-active,
-.sidebar-leave-active {
-  transition: transform 0.3s ease;
+.stop-btn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* 主页面动画（永远只看 collapsed） */
+/* 主页面动画（永远只看 collapsed?*/
 .chat-main {
   transition: padding-left 0.3s ease;
 }
@@ -721,7 +831,7 @@ body {
   padding-left: 0;
 }
 
-/* 滚动条样式 */
+/* 滚动条样?*/
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -738,5 +848,14 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 140, 0, 0.5);
+}
+@media (max-width: 640px) {
+  .input-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .model-select {
+    width: 100%;
+  }
 }
 </style>
