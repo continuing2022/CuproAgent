@@ -1,12 +1,13 @@
 import { createApp } from "vue";
+import { ElMessage } from "element-plus";
 import App from "./App.vue";
 import router from "./router";
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 import "./styles/element-overrides.css";
-import { ElMessage } from "element-plus";
 import i18n, { t } from "@/i18n";
 import { setupIdleLogout } from "@/utils/idleLogout";
+import { clearAuthSession, hasAccessToken } from "@/utils/authStorage";
 
 const app = createApp(App);
 app.use(router);
@@ -16,24 +17,15 @@ app.mount("#app");
 
 setupIdleLogout(router, { idleMs: 30 * 60 * 1000 });
 
-// 全局 token 监听：检测其它标签页的 localStorage 变化以及同页面的 token 被清除
-let _prevToken = localStorage.getItem("token");
-window.addEventListener("storage", (e) => {
-  if (e.key === "token") {
-    const newToken = e.newValue;
-    if (!newToken) {
-      ElMessage.error(t("token_invalid"));
-      router.push({ name: "Login" });
-    }
-  }
-});
+let previousTokenState = hasAccessToken();
 
-// 同标签页修改 localStorage 时 storage 不会触发，使用轮询检查变化
-setInterval(() => {
-  const current = localStorage.getItem("token");
-  if (_prevToken && !current) {
+window.addEventListener("storage", (event) => {
+  if (event.key !== "accessToken") return;
+  const nextTokenState = Boolean(event.newValue);
+  if (previousTokenState && !nextTokenState) {
+    clearAuthSession();
     ElMessage.error(t("token_invalid"));
     router.push({ name: "Login" });
   }
-  _prevToken = current;
-}, 3000);
+  previousTokenState = nextTokenState;
+});

@@ -7,14 +7,13 @@
         :conversations="conversations"
         :currentConvId="currentConvId"
         :createNewConversation="createNewConversation"
-        :deleteConversation="deleteConversation"
+        :deleteConversation="removeConversation"
         :setSidebarOpen="setSidebarOpen"
-        :setCurrentConvId="setCurrentConvId"
+        :setCurrentConvId="setCurrentConversation"
         :formatTime="formatTime"
       />
     </transition>
 
-    <!-- 主聊天区?-->
     <main class="chat-main">
       <header class="chat-header">
         <button v-if="!sidebarOpen" class="menu-btn" @click="toggle()">
@@ -27,7 +26,7 @@
       </header>
 
       <div class="messages-container">
-        <div v-if="currentConv.length === 0" class="welcome-screen">
+        <div v-if="currentMessages.length === 0" class="welcome-screen">
           <div class="welcome-logo">CU</div>
           <h2>{{ t("welcome_title") }}</h2>
           <p>{{ t("welcome_desc") }}</p>
@@ -50,18 +49,29 @@
             </div>
           </div>
         </div>
+
         <div v-else class="messages-list">
           <div
-            v-for="msg in currentConv"
-            :key="msg.id"
+            v-for="msg in currentMessages"
+            :key="msg.id || msg._tempId"
             class="message"
             :class="msg.role"
           >
             <div class="message-avatar">
-              {{ msg.role === "user" ? "U" : " CU" }}
+              {{ msg.role === "user" ? "U" : "CU" }}
             </div>
             <div class="message-content">
-              <div v-html="renderContent(msg.content)"></div>
+              <template v-if="msg.role === 'assistant' && msg.isThinking">
+                <div class="thinking-bubble">
+                  <span class="thinking-label">{{ t("loading") }}</span>
+                  <span class="thinking-dots" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
+                </div>
+              </template>
+              <div v-else v-html="renderContent(msg.content)"></div>
             </div>
           </div>
           <div ref="messagesEndRef"></div>
@@ -73,7 +83,7 @@
           <div class="input-toolbar">
             <el-select
               v-model="modelName"
-              placeholder="选择模型"
+              placeholder="Select model"
               size="small"
               class="model-select"
               popper-class="model-select-popper"
@@ -91,6 +101,7 @@
               size="small"
             />
           </div>
+
           <div class="input-main">
             <textarea
               ref="textareaRef"
@@ -100,11 +111,12 @@
               rows="1"
               :disabled="isStreaming"
             ></textarea>
+
             <button
               v-if="isStreaming"
               class="stop-btn"
-              @click="handleAbort"
-              title="中断"
+              @click="abortCurrentStream"
+              title="停止输出"
             >
               <IconStop />
             </button>
@@ -112,7 +124,7 @@
               v-else
               class="send-btn"
               @click="handleSend"
-              :disabled="!input.trim() || isStreaming"
+              :disabled="!input.trim()"
             >
               <IconSend />
             </button>
@@ -125,19 +137,24 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from "vue";
-import Sidebar from "../components/Sidebar.vue";
-import {
-  getConversations,
-  sendMessage,
-  sendMessageStream,
-  getMessages,
-  deleteConversation as apiDeleteConversation,
-} from "@/api";
-import { IconMenu, IconSend, IconStop } from "../components/icons";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
-import { t, locale } from "@/i18n";
+import Sidebar from "../components/Sidebar.vue";
+import { IconMenu, IconSend, IconStop } from "../components/icons";
+import {
+  deleteConversation,
+  getConversations,
+  getMessages,
+  sendMessageStream,
+} from "@/api";
+import {
+  appendOrUpdateStreamingMessage,
+  createLocalConversation,
+  ensureActiveConversation,
+  normalizeConversationsResponse,
+} from "@/utils/chat";
+import { locale, t } from "@/i18n";
 
 const md = new MarkdownIt({
   html: false,
@@ -145,32 +162,38 @@ const md = new MarkdownIt({
   typographer: true,
 });
 
-const renderContent = (text) => {
-  try {
-    const raw = md.render(text || "");
-    return DOMPurify.sanitize(raw);
-  } catch (e) {
-    return DOMPurify.sanitize(String(text || ""));
-  }
-};
-// 响应式数?
 const input = ref("");
 const isStreaming = ref(false);
 const useNetwork = ref(false);
 const modelName = ref("qwen-plus");
 const sidebarOpen = ref(true);
 const collapsed = ref(false);
-const currentConvId = ref(null);
 const textareaRef = ref(null);
 const messagesEndRef = ref(null);
-// 当前正在流式输出的消息临?id（用于只在该消息显示光标?
-const streamingMsgId = ref(null);
-// 当前活动的流对象（用于中断）
+const currentConvId = ref(null);
 const currentStream = ref(null);
+const streamingMessageTempId = ref(null);
+const conversations = ref([]);
+const messagesByConversation = ref({});
+
+const currentMessages = computed(
+  () => messagesByConversation.value[currentConvId.value] || [],
+);
+
+function renderContent(text) {
+  try {
+    return DOMPurify.sanitize(md.render(text || ""));
+  } catch (error) {
+    return DOMPurify.sanitize(String(text || ""));
+  }
+}
+
+function setSidebarOpen(value) {
+  sidebarOpen.value = value;
+}
 
 function toggle() {
   collapsed.value = !collapsed.value;
-
   if (collapsed.value) {
     setTimeout(() => {
       sidebarOpen.value = false;
@@ -180,267 +203,274 @@ function toggle() {
   }
 }
 
-// setter helpers ?Sidebar 组件通过 props 调用以保持父级状?
-const setSidebarOpen = (v) => (sidebarOpen.value = v);
-// 设置当前对话 ID 并加载对应消息
-const setCurrentConvId = async (v) => {
-  // 当前点击的就是当前会话，直接返回
-  currentConvId.value = v;
-  if (v === undefined) {
-    currentConv.value = [];
+async function loadConversationMessages(conversationId) {
+  if (!conversationId) {
+    messagesByConversation.value[conversationId] = [];
     return;
   }
-  try {
-    const msgs = await getMessages(v);
-    currentConv.value = Array.isArray(msgs.messages) ? msgs.messages : [];
-  } catch (e) {
-    console.error("getMessages error:", e);
+
+  const response = await getMessages(conversationId);
+  messagesByConversation.value[conversationId] = Array.isArray(
+    response?.messages,
+  )
+    ? response.messages
+    : [];
+}
+
+async function setCurrentConversation(conversationId) {
+  currentConvId.value = conversationId;
+  if (conversationId === undefined) {
+    messagesByConversation.value[conversationId] = [];
+    return;
   }
-};
 
-// 对话列表
-const conversations = reactive([]);
+  const activeConversation = ensureActiveConversation(
+    conversations.value,
+    conversationId,
+  );
+  if (activeConversation?._local) return;
 
-// 计算当前选中的对?
-const currentConv = ref([]);
+  await loadConversationMessages(conversationId);
+}
 
-// 监听消息变化，自动滚动到底部
-watch(
-  () => currentConv.value.length,
-  () => {
-    nextTick(() => {
-      if (messagesEndRef.value) {
-        messagesEndRef.value.scrollIntoView({ behavior: "smooth" });
-      }
-    });
-  },
-);
-// 监听输入框内容变化，自动调整高度
-watch(input, () => {
-  if (textareaRef.value) {
-    textareaRef.value.style.height = "auto";
-    textareaRef.value.style.height =
-      Math.min(textareaRef.value.scrollHeight, 200) + "px";
+function createNewConversation() {
+  const existingLocal = conversations.value.find((item) => item._local);
+  if (existingLocal) {
+    currentConvId.value = existingLocal.id;
+    messagesByConversation.value[existingLocal.id] =
+      messagesByConversation.value[existingLocal.id] || [];
+    return;
   }
-});
 
-// 发送消息处理函?
-const handleSend = async () => {
+  const localConversation = createLocalConversation(t("new_chat"));
+  conversations.value = [localConversation, ...conversations.value];
+  currentConvId.value = localConversation.id;
+  messagesByConversation.value[localConversation.id] = [];
+}
+
+async function initConversations() {
+  const response = await getConversations();
+  const normalized = normalizeConversationsResponse(response, t("new_chat"));
+  conversations.value = normalized;
+
+  if (!normalized.length) {
+    createNewConversation();
+    return;
+  }
+
+  currentConvId.value = normalized[0].id;
+  await loadConversationMessages(normalized[0].id);
+}
+
+function updateConversationAfterStart(newConversationId, content) {
+  const localConversation = conversations.value.find((item) => item._local);
+  if (!localConversation || !newConversationId) return;
+
+  localConversation.id = newConversationId;
+  localConversation.title = content.slice(0, 15) || t("new_chat");
+  localConversation.timestamp = Date.now();
+  delete localConversation._local;
+
+  messagesByConversation.value[newConversationId] =
+    messagesByConversation.value[undefined] || [];
+  delete messagesByConversation.value[undefined];
+  currentConvId.value = newConversationId;
+}
+
+function updateAssistantPlaceholder(tempId, chunk) {
+  messagesByConversation.value[currentConvId.value] =
+    appendOrUpdateStreamingMessage(
+      messagesByConversation.value[currentConvId.value] || [],
+      tempId,
+      chunk,
+      { isThinking: false, status: "streaming" },
+    );
+}
+
+function updateAssistantMessage(tempId, updater) {
+  messagesByConversation.value[currentConvId.value] = (
+    messagesByConversation.value[currentConvId.value] || []
+  ).map((message) => {
+    if (message._tempId !== tempId) return message;
+    return { ...message, ...updater(message) };
+  });
+}
+
+function removeAssistantMessage(tempId) {
+  messagesByConversation.value[currentConvId.value] = (
+    messagesByConversation.value[currentConvId.value] || []
+  ).filter((message) => message._tempId !== tempId);
+}
+
+async function handleSend() {
   if (!input.value.trim() || isStreaming.value) return;
+
   const content = input.value.trim();
   input.value = "";
   isStreaming.value = true;
-  try {
-    const makeTempId = () =>
-      `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    currentConv.value.push({ role: "user", content, _tempId: makeTempId() });
-    const conv = conversations.find((c) => c.id === currentConvId.value);
-    let payload = { content };
-    // include user-selected model and optional network search config
-    payload.model = modelName.value || "qwen-plus";
-    if (useNetwork.value) payload.networkConfig = { search: true };
-    if (!conv || !conv._local) {
-      payload.conversation_id = currentConvId.value;
-    } else {
-      payload.title = content.slice(0, 15) || conv.title;
-    }
 
-    // 先添加一个空?assistant 占位，用于流式追?
-    const assistantMsg = {
-      role: "assistant",
-      content: "",
-      _tempId: makeTempId(),
-    };
-    // 标记当前正在流式的消?id（模板中只在该消息显示光标）
-    streamingMsgId.value = assistantMsg._tempId;
-    currentConv.value.push(assistantMsg);
+  const tempUserMessage = {
+    role: "user",
+    content,
+    _tempId: `user-${Date.now()}`,
+  };
+  const tempAssistantId = `assistant-${Date.now()}`;
+  const tempAssistantMessage = {
+    role: "assistant",
+    content: "",
+    _tempId: tempAssistantId,
+    isThinking: true,
+    status: "waiting",
+  };
 
-    const stream = sendMessageStream(payload, {
-      onMessage(data) {
-        // data 可能为字符串 chunk，或对象 { started: true, conversation_id }
-        if (typeof data === "string") {
-          // 流式内容，追加到 assistantMsg
-          currentConv.value = currentConv.value.map((msg) => {
-            if (msg._tempId === assistantMsg._tempId) {
-              return {
-                ...msg,
-                content: msg.content + data,
-              };
-            }
-            return msg;
-          });
-        } else if (data && data.started) {
-          // 后端通知已开始并返回 conversation_id（用于本?_local 会话?
-          const newConvId = data.conversation_id;
-          if (conv && conv._local && newConvId) {
-            conv.id = newConvId;
-            delete conv._local;
-            currentConvId.value = newConvId;
-          }
-        }
-      },
-      onDone(obj) {
-        // obj: { done: true, conversation_id, message_id }
-        if (obj && obj.conversation_id) {
-          const newConvId = obj.conversation_id;
-          const target = conversations.find(
-            (c) => c.id === (newConvId || currentConvId.value),
-          );
-          if (conv && conv._local && newConvId) {
-            conv.id = newConvId;
-            delete conv._local;
-            currentConvId.value = newConvId;
-          }
-          if (target && (!target.title || target.title === t("new_chat")))
-            target.title = content.slice(0, 15);
-          if (target) target.timestamp = Date.now();
-        }
-        if (obj && obj.message_id) assistantMsg.id = obj.message_id;
-        // 清除流式标记
-        streamingMsgId.value = null;
-        isStreaming.value = false;
-        currentStream.value = null;
-      },
-      onError(err) {
-        console.error("sendMessageStream error:", err);
-        // 清除流式标记
-        streamingMsgId.value = null;
-        isStreaming.value = false;
-        currentStream.value = null;
-      },
-    });
+  const targetConversationId = currentConvId.value;
+  const currentList = messagesByConversation.value[targetConversationId] || [];
+  messagesByConversation.value[targetConversationId] = [
+    ...currentList,
+    tempUserMessage,
+    tempAssistantMessage,
+  ];
+  streamingMessageTempId.value = tempAssistantId;
 
-    // 保存当前流对象以便可以中?
-    currentStream.value = stream;
+  const activeConversation = ensureActiveConversation(
+    conversations.value,
+    currentConvId.value,
+  );
 
-    // 如果需要在将来支持中断，可以调用：currentStream.value.abort()
-  } catch (e) {
-    console.error("sendMessage error:", e);
-    isStreaming.value = false;
+  const payload = {
+    content,
+    model: modelName.value,
+  };
+  if (activeConversation && !activeConversation._local && currentConvId.value) {
+    payload.conversation_id = currentConvId.value;
+  } else {
+    payload.title = content.slice(0, 15) || t("new_chat");
   }
-};
+  if (useNetwork.value) {
+    payload.networkConfig = { search: true };
+  }
 
-// 键盘事件处理
-const handleKeyDown = (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
+  currentStream.value = sendMessageStream(payload, {
+    onStarted(event) {
+      updateConversationAfterStart(event.conversation_id, content);
+    },
+    onChunk(event) {
+      updateAssistantPlaceholder(tempAssistantId, event.chunk || "");
+    },
+    onDone(event) {
+      const list = messagesByConversation.value[currentConvId.value] || [];
+      messagesByConversation.value[currentConvId.value] = list.map((message) =>
+        message._tempId === tempAssistantId
+          ? {
+              ...message,
+              id: event.message_id,
+              isThinking: false,
+              status: "done",
+            }
+          : message,
+      );
+
+      const currentConversation = ensureActiveConversation(
+        conversations.value,
+        event.conversation_id,
+      );
+      if (currentConversation) {
+        currentConversation.timestamp = Date.now();
+        if (
+          !currentConversation.title ||
+          currentConversation.title === t("new_chat")
+        ) {
+          currentConversation.title = content.slice(0, 15);
+        }
+      }
+
+      isStreaming.value = false;
+      streamingMessageTempId.value = null;
+      currentStream.value = null;
+    },
+    onAbort() {
+      if (streamingMessageTempId.value) {
+        const tempId = streamingMessageTempId.value;
+        const currentMessage = (
+          messagesByConversation.value[currentConvId.value] || []
+        ).find((message) => message._tempId === tempId);
+
+        if (currentMessage?.content) {
+          updateAssistantMessage(tempId, () => ({
+            isThinking: false,
+            status: "aborted",
+          }));
+        } else {
+          removeAssistantMessage(tempId);
+        }
+      }
+      isStreaming.value = false;
+      streamingMessageTempId.value = null;
+      currentStream.value = null;
+    },
+    onError(error) {
+      console.error("sendMessageStream error:", error);
+      if (streamingMessageTempId.value) {
+        const tempId = streamingMessageTempId.value;
+        const currentMessage = (
+          messagesByConversation.value[currentConvId.value] || []
+        ).find((message) => message._tempId === tempId);
+
+        if (currentMessage?.content) {
+          updateAssistantMessage(tempId, () => ({
+            isThinking: false,
+            status: "error",
+          }));
+        } else {
+          removeAssistantMessage(tempId);
+        }
+      }
+      isStreaming.value = false;
+      streamingMessageTempId.value = null;
+      currentStream.value = null;
+    },
+  });
+}
+
+function abortCurrentStream() {
+  currentStream.value?.abort?.();
+}
+
+async function removeConversation(conversation) {
+  if (conversations.value.length === 1) return;
+
+  if (conversation._local) {
+    conversations.value = conversations.value.filter(
+      (item) => item !== conversation,
+    );
+    delete messagesByConversation.value[conversation.id];
+  } else {
+    await deleteConversation(conversation.id);
+    conversations.value = conversations.value.filter(
+      (item) => item.id !== conversation.id,
+    );
+    delete messagesByConversation.value[conversation.id];
+  }
+
+  if (currentConvId.value === conversation.id) {
+    const nextConversation = conversations.value[0];
+    if (nextConversation) {
+      currentConvId.value = nextConversation.id;
+      if (!nextConversation._local) {
+        await loadConversationMessages(nextConversation.id);
+      }
+    }
+  }
+}
+
+function handleKeyDown(event) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
     handleSend();
   }
-};
+}
 
-// 中断当前流并做清?
-const handleAbort = () => {
-  const tempId = streamingMsgId.value;
-  if (currentStream.value && typeof currentStream.value.abort === "function") {
-    try {
-      currentStream.value.abort();
-    } catch (e) {
-      console.error("abort error:", e);
-    }
-  }
-  // 在流式消息上追加已中断提?
-  if (tempId) {
-    currentConv.value = currentConv.value.map((msg) => {
-      if (msg._tempId === tempId) {
-        return { ...msg, content: (msg.content || "") + "（已中断）" };
-      }
-      return msg;
-    });
-  }
-  streamingMsgId.value = null;
-  isStreaming.value = false;
-  currentStream.value = null;
-};
-
-// 对话列表初始化（兼容后端直接返回数组?{ items: [] }?
-const initConversations = async () => {
-  try {
-    const res = await getConversations();
-    const raw = Array.isArray(res) ? res : res && res.items ? res.items : [];
-    if (raw && raw.length > 0) {
-      const normalized = raw.map((it) => ({
-        id: it.conversation_id,
-        title: it.title || t("new_chat"),
-        messages: Array.isArray(it.messages) ? it.messages : [],
-        timestamp: new Date(it.updated_at).getTime(),
-      }));
-      conversations.splice(0, conversations.length, ...normalized);
-      // currentConvId.value = normalized[0].id;
-      setCurrentConvId(normalized[0].id);
-      try {
-        const msgs = await getMessages(currentConvId.value);
-        const conv = conversations.find((c) => c.id === currentConvId.value);
-        if (conv) conv.messages = Array.isArray(msgs) ? msgs : [];
-      } catch (e) {
-        console.error("getMessages error:", e);
-      }
-    }
-  } catch (error) {
-    console.error("Failed to fetch conversations:", error);
-  }
-};
-
-onMounted(() => {
-  initConversations();
-});
-
-// 创建新对话（在前端先创建本地临时会话，发送第一条消息时同步到后端）
-const createNewConversation = () => {
-  // 判断当前是否存在本地未同步会?
-  const hasLocal = conversations.some((c) => c._local);
-  if (hasLocal) {
-    // 切换到该会话
-    const localConv = conversations.find((c) => c._local);
-    currentConvId.value = localConv.id;
-    setCurrentConvId(localConv.id);
-    return;
-  }
-  const newConv = {
-    id: undefined,
-    title: t("new_chat"),
-    messages: [],
-    timestamp: Date.now(),
-    _local: true,
-  };
-  conversations.unshift(newConv);
-  currentConvId.value = newConv.id;
-  setCurrentConvId(newConv.id);
-};
-
-// 删除对话
-const deleteConversation = async (conv) => {
-  if (conversations.length === 1) return;
-  if (conv.id === undefined) {
-    // 本地未同步会话，直接删除
-    const index = conversations.findIndex((c) => c === conv);
-    if (index !== undefined) {
-      // 删除会话
-      conversations.splice(index, 1);
-      // 如果删除的是当前会话，切换到第一个会?
-      if (currentConvId.value === conv.id) {
-        currentConvId.value = conversations[0].id;
-        setCurrentConvId(currentConvId.value);
-      }
-    }
-    return;
-  }
-  try {
-    await apiDeleteConversation(conv.id);
-    const index = conversations.findIndex((c) => c.id === conv.id);
-    if (index !== undefined) {
-      conversations.splice(index, 1);
-      if (currentConvId.value === conv.id) {
-        currentConvId.value = conversations[0].id;
-        setCurrentConvId(currentConvId.value);
-      }
-    }
-  } catch (e) {
-    console.error("deleteConversation error:", e);
-  }
-};
-
-// 格式化时?
-const formatTime = (timestamp) => {
+function formatTime(timestamp) {
   const now = Date.now();
   const diff = now - timestamp;
   const minutes = Math.floor(diff / 60000);
@@ -454,27 +484,36 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleDateString(
     locale.value === "zh" ? "zh-CN" : "en-US",
   );
-};
+}
 
-// 辅助函数：nextTick 封装
-const nextTick = (callback) => {
-  Promise.resolve().then(callback);
-};
-
-// watch 去监?conversations 的长?如果等于0 便创建一个新的对?
 watch(
-  () => conversations.length,
-  (newLength) => {
-    if (newLength === 0) {
-      createNewConversation();
-    }
+  () => currentMessages.value.map((message) => message.content).join("\n"),
+  async () => {
+    await nextTick();
+    messagesEndRef.value?.scrollIntoView({ behavior: "smooth" });
   },
-  { immediate: true },
 );
+
+watch(input, () => {
+  if (!textareaRef.value) return;
+  textareaRef.value.style.height = "auto";
+  textareaRef.value.style.height = `${Math.min(
+    textareaRef.value.scrollHeight,
+    200,
+  )}px`;
+});
+
+onMounted(() => {
+  initConversations().catch((error) => {
+    console.error("initConversations error:", error);
+    createNewConversation();
+  });
+});
 </script>
 
 <style lang="scss" scoped>
 @import "@/styles/variables.scss";
+
 * {
   margin: 0;
   padding: 0;
@@ -495,13 +534,15 @@ body {
   color: #2d2d2d;
   overflow: hidden;
 }
-/* 主聊天区?*/
+
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   max-width: 100%;
+  transition: padding-left 0.3s ease;
 }
+
 .chat-header {
   padding: 20px 24px;
   border-bottom: 1px solid rgba(255, 140, 0, 0.1);
@@ -652,6 +693,7 @@ body {
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
 }
+
 .message.assistant .message-avatar {
   background: #f5f5f5;
   color: #ff8c00;
@@ -667,6 +709,7 @@ body {
 .message.user {
   flex-direction: row-reverse;
 }
+
 .message.user .message-content {
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
@@ -681,23 +724,51 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.cursor {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  background: #ff8c00;
-  margin-left: 2px;
-  animation: blink 1s infinite;
+.thinking-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #8a6a3d;
+  min-height: 28px;
 }
 
-@keyframes blink {
+.thinking-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thinking-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
+  animation: thinkingPulse 1.1s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes thinkingPulse {
   0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
+  80%,
   100% {
-    opacity: 0;
+    opacity: 0.25;
+    transform: translateY(0) scale(0.9);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1);
   }
 }
 
@@ -707,19 +778,16 @@ body {
   background: #fafafa;
 }
 
-/* 整体卡片 */
 .input-wrapper {
   max-width: 800px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-
   background: #fff;
   border: 2px solid rgba(255, 140, 0, 0.2);
   border-radius: 16px;
   padding: 12px;
-
   transition: all 0.2s;
 }
 
@@ -728,7 +796,6 @@ body {
   box-shadow: 0 4px 16px rgba(255, 140, 0, 0.1);
 }
 
-/* ?工具?*/
 .input-toolbar {
   display: flex;
   justify-content: space-between;
@@ -736,19 +803,16 @@ body {
   gap: 10px;
 }
 
-/* 模型选择宽度 */
 .model-select {
   width: 140px;
 }
 
-/* ?输入?*/
 .input-main {
   display: flex;
   align-items: flex-end;
   gap: 10px;
 }
 
-/* textarea */
 .input-main textarea {
   flex: 1;
   border: none;
@@ -761,26 +825,21 @@ body {
   background: transparent;
 }
 
-/* placeholder */
 .input-main textarea::placeholder {
   color: #aaa;
 }
 
-/* 发送按?*/
 .send-btn {
   width: 42px;
   height: 42px;
   border-radius: 12px;
   border: none;
-
   background: linear-gradient(135deg, #ffb84d 0%, #ff8c00 100%);
   color: white;
-
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-
   transition: all 0.2s;
 }
 
@@ -805,7 +864,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  border: none;
+  border: 1px solid rgba(255, 140, 0, 0.15);
   background: white;
   color: #ff8c00;
   cursor: pointer;
@@ -814,7 +873,6 @@ body {
   justify-content: center;
   transition: all 0.15s;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 140, 0, 0.15);
 }
 
 .stop-btn:hover {
@@ -822,16 +880,6 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* 主页面动画（永远只看 collapsed?*/
-.chat-main {
-  transition: padding-left 0.3s ease;
-}
-
-.layout.collapsed .chat-main {
-  padding-left: 0;
-}
-
-/* 滚动条样?*/
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -849,9 +897,11 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 140, 0, 0.5);
 }
+
 @media (max-width: 640px) {
   .input-toolbar {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .model-select {

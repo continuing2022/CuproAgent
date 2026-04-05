@@ -165,6 +165,7 @@ import router from "@/router";
 import { userLogin, userRegister } from "@/api";
 import { ElMessage } from "element-plus";
 import { t } from "@/i18n";
+import { setAuthSession } from "@/utils/authStorage";
 import {
   Mail,
   Lock,
@@ -172,8 +173,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Github,
-  Chrome,
 } from "lucide-vue-next";
 const isLogin = ref(true);
 const showPassword = ref(false);
@@ -243,16 +242,11 @@ const handleSubmit = async (e) => {
         password: formData.password,
       };
       const res = await userLogin(payload);
-      const accessToken = res.token.accessToken;
-      const refreshToken = res.token.refreshToken;
-      const userName = res.user.username;
-      const email = res.user.email;
-      const role = res.user.role;
-      if (accessToken) localStorage.setItem("accessToken", accessToken);
-      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-      if (userName) localStorage.setItem("username", userName);
-      if (email) localStorage.setItem("email", email);
-      if (role) localStorage.setItem("role", role);
+      setAuthSession({
+        accessToken: res.token?.accessToken,
+        refreshToken: res.token?.refreshToken,
+        user: res.user,
+      });
       ElMessage.success(t("login_success"));
       router.push({ name: "Home" });
     } else {
