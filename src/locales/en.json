@@ -124,5 +124,18 @@
   "exported_prefix": "Exported",
   "exported_suffix": "user records",
   "export_failed": "Export failed",
-  "get_user_detail_failed": "Failed to get user details"
+  "get_user_detail_failed": "Failed to get user details",
+  "delete_conversation": "Delete conversation",
+  "delete_conversation_confirm_title": "Delete Conversation",
+  "delete_conversation_confirm_message": "Delete \"{title}\"? This action cannot be undone.",
+  "conversation_deleted": "Conversation deleted",
+  "delete_conversation_failed": "Failed to delete conversation",
+  "rename_conversation": "Rename conversation",
+  "rename_conversation_title": "Rename Conversation",
+  "rename_conversation_message": "Enter a new conversation title",
+  "rename_conversation_placeholder": "Conversation title",
+  "conversation_title_required": "Please enter a conversation title",
+  "conversation_title_too_long": "Conversation title must be 255 characters or fewer",
+  "conversation_renamed": "Conversation renamed",
+  "rename_conversation_failed": "Failed to rename conversation"
 }

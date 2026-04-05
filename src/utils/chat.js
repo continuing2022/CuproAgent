@@ -13,6 +13,7 @@ export function createLocalConversation(title, timestamp = Date.now()) {
     id: undefined,
     title,
     timestamp,
+    // 本地会话先给前端渲染，等首个 started 事件回来再替换成真实会话 id。
     _local: true,
   };
 }
@@ -23,6 +24,7 @@ export function appendOrUpdateStreamingMessage(
   chunk = "",
   overrides = {},
 ) {
+  // 流式消息统一按 tempId 更新，避免 chunk 过程中重复插入 assistant 气泡。
   return messages.map((message) => {
     if (message._tempId !== tempId) return message;
     return {

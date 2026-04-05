@@ -130,6 +130,31 @@ export const IconTrash = (props, { attrs }) => {
   ]);
 };
 
+export const IconEdit = (props, { attrs }) => {
+  const p = Object.assign(
+    {
+      xmlns: "http://www.w3.org/2000/svg",
+      width: "14",
+      height: "14",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    },
+    attrs,
+  );
+  return h("svg", p, [
+    h("path", {
+      d: "M12 20h9",
+    }),
+    h("path", {
+      d: "M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z",
+    }),
+  ]);
+};
+
 export const IconStop = (props, { attrs }) => {
   const p = Object.assign(
     {
@@ -158,5 +183,6 @@ export default {
   IconPlus,
   IconChat,
   IconTrash,
+  IconEdit,
   IconStop,
 };

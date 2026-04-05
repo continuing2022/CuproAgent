@@ -30,16 +30,27 @@
             <div class="conv-title" :title="conv.title">{{ conv.title }}</div>
             <div class="conv-time">{{ formatTime(conv.timestamp) }}</div>
           </div>
-          <button
-            v-if="conversations.length > 1"
-            class="delete-btn"
-            @click.stop="deleteConversation(conv)"
-          >
-            <IconTrash width="14" height="14" />
-          </button>
+          <div class="conversation-actions">
+            <button
+              class="action-btn"
+              :title="t('rename_conversation')"
+              @click.stop="handleRename(conv)"
+            >
+              <IconEdit width="14" height="14" />
+            </button>
+            <button
+              v-if="conversations.length > 1"
+              class="action-btn delete-btn"
+              :title="t('delete_conversation')"
+              @click.stop="handleDelete(conv)"
+            >
+              <IconTrash width="14" height="14" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
+
     <div class="sidebar-footer">
       <UserProfile />
     </div>
@@ -47,36 +58,84 @@
 </template>
 
 <script setup>
-import { ref, toRefs } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import UserProfile from "./userProfile.vue";
-import { IconClose, IconPlus, IconChat, IconTrash } from "./icons";
+import { IconChat, IconClose, IconEdit, IconPlus, IconTrash } from "./icons";
 import { t } from "@/i18n";
+
 const props = defineProps({
   sidebarOpen: Boolean,
-  conversations: Array,
+  conversations: {
+    type: Array,
+    default: () => [],
+  },
   currentConvId: [Number, String],
   createNewConversation: Function,
   deleteConversation: Function,
+  renameConversation: Function,
   setSidebarOpen: Function,
   setCurrentConvId: Function,
   formatTime: Function,
 });
-const username = ref(localStorage.getItem("username") || t("default_user"));
-// 使用 toRefs 保持 prop 响应性（避免解构丢失响应）
-const {
-  sidebarOpen,
-  conversations,
-  currentConvId,
-  createNewConversation,
-  deleteConversation,
-  setSidebarOpen,
-  setCurrentConvId,
-  formatTime,
-} = toRefs(props);
+
+async function handleDelete(conversation) {
+  try {
+    await ElMessageBox.confirm(
+      t("delete_conversation_confirm_message").replace(
+        "{title}",
+        conversation.title,
+      ),
+      t("delete_conversation_confirm_title"),
+      {
+        confirmButtonText: t("confirm_delete"),
+        cancelButtonText: t("cancel"),
+        type: "warning",
+        customClass: "delete-confirm-box",
+      },
+    );
+
+    await props.deleteConversation?.(conversation);
+    ElMessage.success(t("conversation_deleted"));
+  } catch (error) {
+    if (error === "cancel" || error === "close") return;
+    ElMessage.error(t("delete_conversation_failed"));
+  }
+}
+
+async function handleRename(conversation) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      t("rename_conversation_message"),
+      {
+        confirmButtonText: t("save"),
+        cancelButtonText: t("cancel"),
+        inputValue: conversation.title,
+        inputPlaceholder: t("rename_conversation_placeholder"),
+        customClass: "rename-conversation-box",
+        inputValidator: (inputValue) => {
+          const trimmed = String(inputValue || "").trim();
+          if (!trimmed) return t("conversation_title_required");
+          if (trimmed.length > 255) return t("conversation_title_too_long");
+          return true;
+        },
+      },
+    );
+
+    const nextTitle = String(value || "").trim();
+    if (!nextTitle || nextTitle === conversation.title) return;
+
+    await props.renameConversation?.(conversation, nextTitle);
+    ElMessage.success(t("conversation_renamed"));
+  } catch (error) {
+    if (error === "cancel" || error === "close") return;
+    ElMessage.error(t("rename_conversation_failed"));
+  }
+}
 </script>
+
 <style lang="scss" scoped>
 @import "@/styles/variables.scss";
-/* 侧边栏样式 */
+
 .sidebar {
   width: 280px;
   background: linear-gradient(180deg, #ff8c00 0%, #ff7a00 100%);
@@ -220,91 +279,42 @@ const {
   margin-top: 2px;
 }
 
-.delete-btn {
+.conversation-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.conversation-item:hover .conversation-actions,
+.conversation-item.active .conversation-actions {
+  opacity: 0.9;
+}
+
+.action-btn {
   background: none;
   border: none;
   color: white;
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
-  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s;
 }
 
-.conversation-item:hover .delete-btn {
-  opacity: 0.7;
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .delete-btn:hover {
-  opacity: 1 !important;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.footer-btn {
-  width: 100%;
-  padding: 10px 12px;
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  transition: background 0.2s;
-  margin-bottom: 6px;
-}
-
-.footer-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.version {
-  text-align: center;
-  font-size: 11px;
-  opacity: 0.7;
-  margin-top: 12px;
-}
-/* 用户按钮和弹窗 */
-.user-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: none;
-  border: none;
-  color: white;
-  padding: 8px 12px;
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-.user-avatar,
-.modal-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-}
-.user-info {
-  text-align: left;
-}
-.user-name {
-  font-size: 14px;
-  font-weight: 600;
-}
-.user-role {
-  font-size: 12px;
-  opacity: 0.8;
 }
 </style>

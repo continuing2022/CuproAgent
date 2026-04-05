@@ -8,6 +8,7 @@
         :currentConvId="currentConvId"
         :createNewConversation="createNewConversation"
         :deleteConversation="removeConversation"
+        :renameConversation="renameConversation"
         :setSidebarOpen="setSidebarOpen"
         :setCurrentConvId="setCurrentConversation"
         :formatTime="formatTime"
@@ -63,7 +64,6 @@
             <div class="message-content">
               <template v-if="msg.role === 'assistant' && msg.isThinking">
                 <div class="thinking-bubble">
-                  <span class="thinking-label">{{ t("loading") }}</span>
                   <span class="thinking-dots" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -147,6 +147,7 @@ import {
   getConversations,
   getMessages,
   sendMessageStream,
+  updateConversation as updateConversationApi,
 } from "@/api";
 import {
   appendOrUpdateStreamingMessage,
@@ -176,6 +177,7 @@ const streamingMessageTempId = ref(null);
 const conversations = ref([]);
 const messagesByConversation = ref({});
 
+// 当前对话内容从会话消息映射中按会话 id 投影，历史会话和本地会话共用一套渲染。
 const currentMessages = computed(
   () => messagesByConversation.value[currentConvId.value] || [],
 );
@@ -233,6 +235,12 @@ async function setCurrentConversation(conversationId) {
   await loadConversationMessages(conversationId);
 }
 
+function sortConversationsByTimestamp() {
+  conversations.value = [...conversations.value].sort(
+    (left, right) => (right.timestamp || 0) - (left.timestamp || 0),
+  );
+}
+
 function createNewConversation() {
   const existingLocal = conversations.value.find((item) => item._local);
   if (existingLocal) {
@@ -267,7 +275,9 @@ function updateConversationAfterStart(newConversationId, content) {
   if (!localConversation || !newConversationId) return;
 
   localConversation.id = newConversationId;
-  localConversation.title = content.slice(0, 15) || t("new_chat");
+  if (!localConversation.title || localConversation.title === t("new_chat")) {
+    localConversation.title = content.slice(0, 15) || t("new_chat");
+  }
   localConversation.timestamp = Date.now();
   delete localConversation._local;
 
@@ -275,9 +285,11 @@ function updateConversationAfterStart(newConversationId, content) {
     messagesByConversation.value[undefined] || [];
   delete messagesByConversation.value[undefined];
   currentConvId.value = newConversationId;
+  sortConversationsByTimestamp();
 }
 
 function updateAssistantPlaceholder(tempId, chunk) {
+  // assistant 首个 chunk 返回前显示 waiting 占位，收到内容后切成真实消息态。
   messagesByConversation.value[currentConvId.value] =
     appendOrUpdateStreamingMessage(
       messagesByConversation.value[currentConvId.value] || [],
@@ -319,6 +331,7 @@ async function handleSend() {
     role: "assistant",
     content: "",
     _tempId: tempAssistantId,
+    // 先插入一个 thinking 占位气泡，避免首包返回前界面没有反馈。
     isThinking: true,
     status: "waiting",
   };
@@ -344,7 +357,10 @@ async function handleSend() {
   if (activeConversation && !activeConversation._local && currentConvId.value) {
     payload.conversation_id = currentConvId.value;
   } else {
-    payload.title = content.slice(0, 15) || t("new_chat");
+    payload.title =
+      activeConversation?.title && activeConversation.title !== t("new_chat")
+        ? activeConversation.title
+        : content.slice(0, 15) || t("new_chat");
   }
   if (useNetwork.value) {
     payload.networkConfig = { search: true };
@@ -383,6 +399,7 @@ async function handleSend() {
           currentConversation.title = content.slice(0, 15);
         }
       }
+      sortConversationsByTimestamp();
 
       isStreaming.value = false;
       streamingMessageTempId.value = null;
@@ -395,6 +412,7 @@ async function handleSend() {
           messagesByConversation.value[currentConvId.value] || []
         ).find((message) => message._tempId === tempId);
 
+        // 有内容就保留在界面上，空气泡则直接移除。
         if (currentMessage?.content) {
           updateAssistantMessage(tempId, () => ({
             isThinking: false,
@@ -434,6 +452,29 @@ async function handleSend() {
 
 function abortCurrentStream() {
   currentStream.value?.abort?.();
+}
+
+async function renameConversation(conversation, title) {
+  const nextTitle = String(title || "").trim();
+  if (!nextTitle) return;
+
+  if (conversation._local || !conversation.id) {
+    conversation.title = nextTitle;
+    conversation.timestamp = Date.now();
+    sortConversationsByTimestamp();
+    return;
+  }
+
+  const response = await updateConversationApi(conversation.id, {
+    title: nextTitle,
+  });
+  const updatedAt = response?.conversation?.updated_at
+    ? new Date(response.conversation.updated_at).getTime()
+    : Date.now();
+
+  conversation.title = nextTitle;
+  conversation.timestamp = updatedAt;
+  sortConversationsByTimestamp();
 }
 
 async function removeConversation(conversation) {
@@ -489,6 +530,7 @@ function formatTime(timestamp) {
 watch(
   () => currentMessages.value.map((message) => message.content).join("\n"),
   async () => {
+    // 流式输出期间消息内容会持续增长，这里跟随内容变化自动滚到底部。
     await nextTick();
     messagesEndRef.value?.scrollIntoView({ behavior: "smooth" });
   },
@@ -496,6 +538,7 @@ watch(
 
 watch(input, () => {
   if (!textareaRef.value) return;
+  // 输入框高度自适应，但限制最大高度，避免遮挡消息区域。
   textareaRef.value.style.height = "auto";
   textareaRef.value.style.height = `${Math.min(
     textareaRef.value.scrollHeight,

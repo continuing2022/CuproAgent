@@ -35,6 +35,7 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response?.status;
 
+    // 多个请求同时 401 时，只发起一次 refresh，其余请求挂起等待新 token。
     if (status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -166,10 +167,16 @@ export async function deleteConversation(convId) {
   return res.data;
 }
 
+export async function updateConversation(convId, payload) {
+  const res = await api.put(`/conversations/${convId}`, payload);
+  return res.data;
+}
+
 export function sendMessageStream(
   payload,
   { onStarted, onRetrieved, onChunk, onDone, onError, onAbort } = {},
 ) {
+  // 流式对话单独走 fetch，便于直接消费 SSE 数据并支持中途 abort。
   const controller = new AbortController();
 
   (async () => {
@@ -198,6 +205,7 @@ export function sendMessageStream(
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
 
+      // 后端按 SSE 分段推送，这里手动做 event buffer 拆包。
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -246,6 +254,7 @@ export function sendMessageStream(
         }
       }
     } catch (error) {
+      // 用户主动点击停止时，不当作普通错误处理。
       if (error.name === "AbortError") {
         onAbort?.();
         return;
@@ -266,5 +275,6 @@ export default {
   userLogout,
   getConversations,
   getMessages,
+  updateConversation,
   sendMessageStream,
 };

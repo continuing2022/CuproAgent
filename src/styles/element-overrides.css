@@ -1,34 +1,45 @@
 
-/* 退出登录确认框样式 - CuproAgent 橙色主题 */
-.logout-confirm-box {
+/* 共享确认框/输入框样式 - CuproAgent 橙色主题 */
+.logout-confirm-box,
+.delete-confirm-box,
+.rename-conversation-box {
   border-radius: 12px !important;
   padding: 20px !important;
   background: linear-gradient(135deg, #fff 0%, #fff5f0 100%);
   border: 2px solid #ff8c3a;
+  box-shadow:
+    0 20px 40px rgba(255, 122, 31, 0.18),
+    0 0 0 1px rgba(255, 140, 58, 0.08);
 }
 
 /* 标题样式 */
-.logout-confirm-box .el-message-box__title {
+.logout-confirm-box .el-message-box__title,
+.delete-confirm-box .el-message-box__title,
+.rename-conversation-box .el-message-box__title {
   color: #ff7a1f;
   font-weight: 600;
   font-size: 18px;
 }
 
 /* 内容文字样式 */
-.logout-confirm-box .el-message-box__content {
+.logout-confirm-box .el-message-box__content,
+.delete-confirm-box .el-message-box__content,
+.rename-conversation-box .el-message-box__content {
   color: #666;
   font-size: 14px;
-  padding: 20px 0;
 }
 
 /* 警告图标样式 */
-.logout-confirm-box .el-message-box__status {
+.logout-confirm-box .el-message-box__status,
+.delete-confirm-box .el-message-box__status {
   color: #ff8c3a !important;
   font-size: 24px;
 }
 
 /* 按钮容器 */
-.logout-confirm-box .el-message-box__btns {
+.logout-confirm-box .el-message-box__btns,
+.delete-confirm-box .el-message-box__btns,
+.rename-conversation-box .el-message-box__btns {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -36,7 +47,9 @@
 }
 
 /* 确认按钮样式 */
-.logout-confirm-box .el-button--primary {
+.logout-confirm-box .el-button--primary,
+.delete-confirm-box .el-button--primary,
+.rename-conversation-box .el-button--primary {
   background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
   border: none;
   color: #fff;
@@ -45,20 +58,27 @@
   font-weight: 500;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(255, 122, 31, 0.3);
+  min-width: 92px;
 }
 
-.logout-confirm-box .el-button--primary:hover {
+.logout-confirm-box .el-button--primary:hover,
+.delete-confirm-box .el-button--primary:hover,
+.rename-conversation-box .el-button--primary:hover {
   background: linear-gradient(135deg, #ff7a1f 0%, #ff6a0f 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(255, 122, 31, 0.4);
 }
 
-.logout-confirm-box .el-button--primary:active {
+.logout-confirm-box .el-button--primary:active,
+.delete-confirm-box .el-button--primary:active,
+.rename-conversation-box .el-button--primary:active {
   transform: translateY(0);
 }
 
 /* 取消按钮样式 */
-.logout-confirm-box .el-button--default {
+.logout-confirm-box .el-button--default,
+.delete-confirm-box .el-button--default,
+.rename-conversation-box .el-button--default {
   background: #fff;
   border: 2px solid #ff8c3a;
   color: #ff7a1f;
@@ -66,28 +86,99 @@
   border-radius: 8px;
   font-weight: 500;
   transition: all 0.3s ease;
+  min-width: 92px;
 }
 
-.logout-confirm-box .el-button:hover {
+.logout-confirm-box .el-button:hover,
+.delete-confirm-box .el-button:hover,
+.rename-conversation-box .el-button:hover {
   background: #fff5f0;
   border-color: #ff7a1f;
   color: #ff6a0f;
 }
 
 /* 关闭按钮样式 */
-.logout-confirm-box .el-message-box__headerbtn {
+.logout-confirm-box .el-message-box__headerbtn,
+.delete-confirm-box .el-message-box__headerbtn,
+.rename-conversation-box .el-message-box__headerbtn {
   top: 16px;
   right: 16px;
   font-size: 18px;
 }
 
-.logout-confirm-box .el-message-box__headerbtn .el-message-box__close {
+.logout-confirm-box .el-message-box__headerbtn .el-message-box__close,
+.delete-confirm-box .el-message-box__headerbtn .el-message-box__close,
+.rename-conversation-box .el-message-box__headerbtn .el-message-box__close {
   color: #ff8c3a;
   transition: color 0.3s ease;
 }
 
-.logout-confirm-box .el-message-box__headerbtn:hover .el-message-box__close {
+.logout-confirm-box .el-message-box__headerbtn:hover .el-message-box__close,
+.delete-confirm-box .el-message-box__headerbtn:hover .el-message-box__close,
+.rename-conversation-box .el-message-box__headerbtn:hover .el-message-box__close {
   color: #ff7a1f;
+}
+
+.rename-conversation-box .el-message-box__header,
+.logout-confirm-box .el-message-box__header,
+.delete-confirm-box .el-message-box__header {
+  padding-bottom: 6px;
+}
+
+.rename-conversation-box .el-message-box__message,
+.logout-confirm-box .el-message-box__message,
+.delete-confirm-box .el-message-box__message {
+  color: #7b664f;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+.rename-conversation-box .el-message-box__input {
+  padding-top: 4px;
+}
+
+.rename-conversation-box .el-input__wrapper {
+  min-height: 48px;
+  border-radius: 12px;
+  background: #fffaf5;
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 92, 0.26);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.rename-conversation-box .el-input__wrapper:hover {
+  background: #fff8f1;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 156, 58, 0.38),
+    0 6px 14px rgba(255, 140, 0, 0.08);
+}
+
+.rename-conversation-box .el-input__wrapper.is-focus,
+.rename-conversation-box .el-input__wrapper:focus-within {
+  background: #fff8f2;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 140, 0, 0.48),
+    0 0 0 3px rgba(255, 186, 102, 0.14);
+}
+
+.rename-conversation-box .el-input__inner {
+  color: #8e531f;
+  font-weight: 600;
+}
+
+.rename-conversation-box .el-input__inner::placeholder {
+  color: #d1a06d;
+  font-weight: 500;
+}
+
+.rename-conversation-box .el-message-box__errormsg {
+  display: none;
+}
+
+.rename-conversation-box .el-input__wrapper.is-error {
+  background: #fff7f1;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(234, 88, 12, 0.48),
+    0 0 0 3px rgba(251, 146, 60, 0.12);
 }
 
 /* 动画 */
@@ -274,6 +365,52 @@
   margin-left: 8px;
 }
 
+.user-management-container .filter-select .el-select__wrapper {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: #fff8f1;
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 92, 0.26);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.user-management-container .filter-select .el-select__wrapper:hover {
+  background: #fff8f1;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 156, 58, 0.38),
+    0 6px 14px rgba(255, 140, 0, 0.08);
+}
+
+.user-management-container .filter-select.is-focus .el-select__wrapper,
+.user-management-container .filter-select .el-select__wrapper.is-focused,
+.user-management-container .filter-select .is-focused .el-select__wrapper {
+  background: #fff8f2;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 140, 0, 0.48),
+    0 0 0 3px rgba(255, 186, 102, 0.14);
+}
+
+.user-management-container .filter-select .el-select__selection {
+  min-width: 0;
+}
+
+.user-management-container .filter-select .el-select__selected-item,
+.user-management-container .filter-select .el-select__input,
+.user-management-container .filter-select .el-select__placeholder {
+  color: #8e531f !important;
+  font-weight: 600;
+  padding-left: 2px;
+}
+
+.user-management-container .filter-select .el-select__placeholder {
+  color: #c08c5b !important;
+}
+
+.user-management-container .filter-select .el-select__caret {
+  color: #de8a34;
+  margin-left: 8px;
+}
+
 .oragen-container .input-wrapper .input-toolbar .el-switch {
   min-width: 112px;
   height: 44px;
@@ -350,6 +487,12 @@
   background: #fff1df;
   color: #f08a00;
   font-weight: 600;
+}
+
+.user-role-select-popper .el-select-dropdown__item {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 @media (max-width: 640px) {

@@ -52,6 +52,7 @@
             :placeholder="t('all_roles')"
             clearable
             class="filter-select"
+            popper-class="model-select-popper user-role-select-popper"
             @change="fetchUsers"
           >
             <el-option :label="t('all_roles')" value="" />
@@ -1060,34 +1061,6 @@ onUnmounted(() => {
 :deep(.el-descriptions__content) {
   color: #1f2937;
   font-weight: 500;
-}
-
-/* 确认框样式 */
-:deep(.delete-confirm-box) {
-  border-radius: 1rem;
-  border: 2px solid var(--accent);
-}
-
-:deep(.delete-confirm-box .el-message-box__title) {
-  color: var(--accent-2);
-  font-weight: 600;
-}
-
-:deep(.delete-confirm-box .el-message-box__content) {
-  color: #374151;
-  padding: 1.5rem 0;
-}
-
-:deep(.delete-confirm-box .el-button--primary) {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-}
-
-:deep(.delete-confirm-box .el-button--primary:hover) {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
 }
 
 :deep(.btn-reset:hover) {
