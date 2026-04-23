@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { hasAccessToken } from "@/utils/authStorage";
 
 const routes = [
   {
@@ -25,11 +26,11 @@ const router = createRouter({
 
 // 全局路由守卫：无 token 跳转到 Login，有 token 访问 Login 则重定向到 Home
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem("accessToken");
-  if (!token && to.name !== "Login") {
+  const authenticated = hasAccessToken();
+  if (!authenticated && to.name !== "Login") {
     return next({ name: "Login" });
   }
-  if (token && to.name === "Login") {
+  if (authenticated && to.name === "Login") {
     return next({ name: "Home" });
   }
   next();

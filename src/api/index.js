@@ -8,6 +8,7 @@ import {
 
 let isRefreshing = false;
 let pendingRequests = [];
+const REFRESH_ENDPOINT = "/auth/refresh";
 
 const api = axios.create({
   baseURL: "http://127.0.0.1:3000",
@@ -16,6 +17,19 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+function isRefreshRequest(config) {
+  return Boolean(config?.url && String(config.url).includes(REFRESH_ENDPOINT));
+}
+
+function flushPendingRequests(handler) {
+  pendingRequests.forEach(handler);
+  pendingRequests = [];
+}
+
+function normalizeHttpError(error) {
+  return error?.response?.data || { message: error?.message || "Network Error" };
+}
 
 api.interceptors.request.use(
   (config) => {
@@ -35,51 +49,55 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response?.status;
 
-    // 多个请求同时 401 时，只发起一次 refresh，其余请求挂起等待新 token。
-    if (status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          pendingRequests.push({
-            resolve: (token) => {
-              originalRequest.headers = originalRequest.headers || {};
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-              resolve(api(originalRequest));
-            },
-            reject,
-          });
-        });
-      }
-
-      isRefreshing = true;
-
-      try {
-        const data = await refreshToken();
-        if (!data.accessToken) {
-          throw new Error("No access token returned from refresh");
-        }
-
-        setAuthSession({ accessToken: data.accessToken });
-        pendingRequests.forEach(({ resolve }) => resolve(data.accessToken));
-        pendingRequests = [];
-
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        pendingRequests.forEach(({ reject }) => reject(refreshError));
-        pendingRequests = [];
-        clearAuthSession();
-        throw refreshError;
-      } finally {
-        isRefreshing = false;
-      }
+    if (!originalRequest || status !== 401) {
+      return Promise.reject(normalizeHttpError(error));
     }
 
-    return Promise.reject(
-      error.response?.data || { message: error.message || "Network Error" },
-    );
+    if (isRefreshRequest(originalRequest)) {
+      clearAuthSession();
+      return Promise.reject(normalizeHttpError(error));
+    }
+
+    if (originalRequest._retry) {
+      return Promise.reject(normalizeHttpError(error));
+    }
+
+    originalRequest._retry = true;
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        pendingRequests.push({
+          resolve: (token) => {
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          },
+          reject,
+        });
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const data = await refreshToken();
+      if (!data.accessToken) {
+        throw new Error("No access token returned from refresh");
+      }
+
+      setAuthSession({ accessToken: data.accessToken });
+      flushPendingRequests(({ resolve }) => resolve(data.accessToken));
+
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      flushPendingRequests(({ reject }) => reject(refreshError));
+      clearAuthSession();
+      return Promise.reject(normalizeHttpError(refreshError));
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
@@ -95,15 +113,20 @@ export async function userRegister(payload) {
 
 export async function userLogout() {
   const refreshToken = getRefreshToken();
-  clearAuthSession();
-  const res = await api.post("/auth/logout", { refreshToken });
-  return res.data;
+  try {
+    const res = await api.post("/auth/logout", { refreshToken });
+    return res.data;
+  } finally {
+    clearAuthSession();
+  }
 }
 
 export async function refreshToken() {
   const refreshTokenValue = getRefreshToken();
   if (!refreshTokenValue) throw new Error("No refresh token available");
-  const res = await api.post("/auth/refresh", { refreshToken: refreshTokenValue });
+  const res = await api.post("/auth/refresh", {
+    refreshToken: refreshTokenValue,
+  });
   return res.data;
 }
 
@@ -172,12 +195,64 @@ export async function updateConversation(convId, payload) {
   return res.data;
 }
 
+function dispatchSseEvent(event, handlers = {}) {
+  const { onStarted, onRetrieved, onChunk, onDone, onError } = handlers;
+  if (!event || typeof event !== "object") return;
+
+  switch (event.type) {
+    case "started":
+      onStarted?.(event);
+      break;
+    case "retrieved":
+      onRetrieved?.(event);
+      break;
+    case "chunk":
+      onChunk?.(event);
+      break;
+    case "done":
+      onDone?.(event);
+      break;
+    case "error":
+      onError?.(event.error || event);
+      break;
+    default:
+      if (event.started) onStarted?.(event);
+      if (event.retrieved) onRetrieved?.(event);
+      if (event.chunk) onChunk?.(event);
+      if (event.done) onDone?.(event);
+      if (event.error) onError?.(event.error);
+      break;
+  }
+}
+
+function processSsePart(part, handlers) {
+  if (!part.trim() || part.startsWith(":")) return;
+
+  const dataLines = part
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.replace(/^data:\s?/, ""));
+
+  if (!dataLines.length) return;
+
+  const payloadText = dataLines.join("\n");
+  let event = null;
+  try {
+    event = JSON.parse(payloadText);
+  } catch (error) {
+    // Ignore a malformed SSE frame instead of aborting the full stream.
+    return;
+  }
+
+  dispatchSseEvent(event, handlers);
+}
+
 export function sendMessageStream(
   payload,
   { onStarted, onRetrieved, onChunk, onDone, onError, onAbort } = {},
 ) {
-  // 流式对话单独走 fetch，便于直接消费 SSE 数据并支持中途 abort。
   const controller = new AbortController();
+  const handlers = { onStarted, onRetrieved, onChunk, onDone, onError };
 
   (async () => {
     try {
@@ -200,61 +275,31 @@ export function sendMessageStream(
         const text = await res.text();
         throw new Error(text || `HTTP ${res.status}`);
       }
+      if (!res.body) {
+        throw new Error("Response body is empty");
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
 
-      // 后端按 SSE 分段推送，这里手动做 event buffer 拆包。
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        buffer += decoder.decode(value || new Uint8Array(), {
+          stream: !done,
+        });
 
-        buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
         buffer = parts.pop() || "";
+        parts.forEach((part) => processSsePart(part, handlers));
 
-        for (const part of parts) {
-          if (!part.trim() || part.startsWith(":")) continue;
+        if (done) break;
+      }
 
-          const dataLines = part
-            .split("\n")
-            .filter((line) => line.startsWith("data:"))
-            .map((line) => line.replace(/^data:\s?/, ""));
-
-          if (!dataLines.length) continue;
-
-          const payloadText = dataLines.join("\n");
-          const event = JSON.parse(payloadText);
-
-          switch (event.type) {
-            case "started":
-              onStarted?.(event);
-              break;
-            case "retrieved":
-              onRetrieved?.(event);
-              break;
-            case "chunk":
-              onChunk?.(event);
-              break;
-            case "done":
-              onDone?.(event);
-              break;
-            case "error":
-              onError?.(event.error || event);
-              break;
-            default:
-              if (event.started) onStarted?.(event);
-              if (event.retrieved) onRetrieved?.(event);
-              if (event.chunk) onChunk?.(event);
-              if (event.done) onDone?.(event);
-              if (event.error) onError?.(event.error);
-              break;
-          }
-        }
+      if (buffer.trim()) {
+        processSsePart(buffer, handlers);
       }
     } catch (error) {
-      // 用户主动点击停止时，不当作普通错误处理。
       if (error.name === "AbortError") {
         onAbort?.();
         return;

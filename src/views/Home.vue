@@ -33,19 +33,19 @@
           <p>{{ t("welcome_desc") }}</p>
           <div class="suggestion-cards">
             <div class="suggestion-card" @click="input = t('suggestion_1')">
-              <div class="card-icon">💬</div>
+              <div class="card-icon">&#128172;</div>
               <div class="card-title">{{ t("suggestion_1") }}</div>
             </div>
             <div class="suggestion-card" @click="input = t('suggestion_2')">
-              <div class="card-icon">✨</div>
+              <div class="card-icon">&#10024;</div>
               <div class="card-title">{{ t("suggestion_2") }}</div>
             </div>
             <div class="suggestion-card" @click="input = t('suggestion_3')">
-              <div class="card-icon">✍️</div>
+              <div class="card-icon">&#9997;</div>
               <div class="card-title">{{ t("suggestion_3") }}</div>
             </div>
             <div class="suggestion-card" @click="input = t('suggestion_4')">
-              <div class="card-icon">📚</div>
+              <div class="card-icon">&#128218;</div>
               <div class="card-title">{{ t("suggestion_4") }}</div>
             </div>
           </div>
@@ -96,8 +96,8 @@
 
             <el-switch
               v-model="useNetwork"
-              active-text="联网"
-              inactive-text="本地"
+              active-text="Web"
+              inactive-text="Local"
               size="small"
             />
           </div>
@@ -116,7 +116,7 @@
               v-if="isStreaming"
               class="stop-btn"
               @click="abortCurrentStream"
-              title="停止输出"
+              title="Stop output"
             >
               <IconStop />
             </button>
@@ -137,7 +137,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import Sidebar from "../components/Sidebar.vue";
@@ -177,10 +177,23 @@ const streamingMessageTempId = ref(null);
 const conversations = ref([]);
 const messagesByConversation = ref({});
 
-// 当前对话内容从会话消息映射中按会话 id 投影，历史会话和本地会话共用一套渲染。
-const currentMessages = computed(
-  () => messagesByConversation.value[currentConvId.value] || [],
+const currentMessages = computed(() =>
+  getConversationMessages(currentConvId.value),
 );
+
+function getConversationMessages(conversationId) {
+  return messagesByConversation.value[conversationId] || [];
+}
+
+function setConversationMessages(conversationId, messages) {
+  messagesByConversation.value[conversationId] = messages;
+}
+
+function resetStreamingState() {
+  isStreaming.value = false;
+  streamingMessageTempId.value = null;
+  currentStream.value = null;
+}
 
 function renderContent(text) {
   try {
@@ -206,25 +219,20 @@ function toggle() {
 }
 
 async function loadConversationMessages(conversationId) {
-  if (!conversationId) {
-    messagesByConversation.value[conversationId] = [];
-    return;
-  }
+  if (!conversationId) return;
 
   const response = await getMessages(conversationId);
-  messagesByConversation.value[conversationId] = Array.isArray(
-    response?.messages,
-  )
-    ? response.messages
-    : [];
+  setConversationMessages(
+    conversationId,
+    Array.isArray(response?.messages) ? response.messages : [],
+  );
 }
 
 async function setCurrentConversation(conversationId) {
+  if (isStreaming.value) return;
+
   currentConvId.value = conversationId;
-  if (conversationId === undefined) {
-    messagesByConversation.value[conversationId] = [];
-    return;
-  }
+  if (conversationId === undefined) return;
 
   const activeConversation = ensureActiveConversation(
     conversations.value,
@@ -245,15 +253,17 @@ function createNewConversation() {
   const existingLocal = conversations.value.find((item) => item._local);
   if (existingLocal) {
     currentConvId.value = existingLocal.id;
-    messagesByConversation.value[existingLocal.id] =
-      messagesByConversation.value[existingLocal.id] || [];
+    setConversationMessages(
+      existingLocal.id,
+      getConversationMessages(existingLocal.id),
+    );
     return;
   }
 
   const localConversation = createLocalConversation(t("new_chat"));
   conversations.value = [localConversation, ...conversations.value];
   currentConvId.value = localConversation.id;
-  messagesByConversation.value[localConversation.id] = [];
+  setConversationMessages(localConversation.id, []);
 }
 
 async function initConversations() {
@@ -270,9 +280,9 @@ async function initConversations() {
   await loadConversationMessages(normalized[0].id);
 }
 
-function updateConversationAfterStart(newConversationId, content) {
+function updateConversationAfterStart(sourceConversationId, newConversationId, content) {
   const localConversation = conversations.value.find((item) => item._local);
-  if (!localConversation || !newConversationId) return;
+  if (!localConversation || !newConversationId) return sourceConversationId;
 
   localConversation.id = newConversationId;
   if (!localConversation.title || localConversation.title === t("new_chat")) {
@@ -281,37 +291,64 @@ function updateConversationAfterStart(newConversationId, content) {
   localConversation.timestamp = Date.now();
   delete localConversation._local;
 
-  messagesByConversation.value[newConversationId] =
-    messagesByConversation.value[undefined] || [];
-  delete messagesByConversation.value[undefined];
-  currentConvId.value = newConversationId;
+  const sourceMessages = getConversationMessages(sourceConversationId);
+  setConversationMessages(newConversationId, sourceMessages);
+  if (sourceConversationId !== newConversationId) {
+    delete messagesByConversation.value[sourceConversationId];
+  }
+
+  if (currentConvId.value === sourceConversationId) {
+    currentConvId.value = newConversationId;
+  }
+
   sortConversationsByTimestamp();
+  return newConversationId;
 }
 
-function updateAssistantPlaceholder(tempId, chunk) {
-  // assistant 首个 chunk 返回前显示 waiting 占位，收到内容后切成真实消息态。
-  messagesByConversation.value[currentConvId.value] =
+function updateAssistantPlaceholder(conversationId, tempId, chunk) {
+  setConversationMessages(
+    conversationId,
     appendOrUpdateStreamingMessage(
-      messagesByConversation.value[currentConvId.value] || [],
+      getConversationMessages(conversationId),
       tempId,
       chunk,
       { isThinking: false, status: "streaming" },
-    );
+    ),
+  );
 }
 
-function updateAssistantMessage(tempId, updater) {
-  messagesByConversation.value[currentConvId.value] = (
-    messagesByConversation.value[currentConvId.value] || []
-  ).map((message) => {
-    if (message._tempId !== tempId) return message;
-    return { ...message, ...updater(message) };
-  });
+function updateAssistantMessage(conversationId, tempId, updater) {
+  setConversationMessages(
+    conversationId,
+    getConversationMessages(conversationId).map((message) => {
+      if (message._tempId !== tempId) return message;
+      return { ...message, ...updater(message) };
+    }),
+  );
 }
 
-function removeAssistantMessage(tempId) {
-  messagesByConversation.value[currentConvId.value] = (
-    messagesByConversation.value[currentConvId.value] || []
-  ).filter((message) => message._tempId !== tempId);
+function removeAssistantMessage(conversationId, tempId) {
+  setConversationMessages(
+    conversationId,
+    getConversationMessages(conversationId).filter(
+      (message) => message._tempId !== tempId,
+    ),
+  );
+}
+
+function finalizeAssistantMessage(conversationId, tempId, status) {
+  const currentMessage = getConversationMessages(conversationId).find(
+    (message) => message._tempId === tempId,
+  );
+
+  if (currentMessage?.content) {
+    updateAssistantMessage(conversationId, tempId, () => ({
+      isThinking: false,
+      status,
+    }));
+  } else {
+    removeAssistantMessage(conversationId, tempId);
+  }
 }
 
 async function handleSend() {
@@ -331,64 +368,77 @@ async function handleSend() {
     role: "assistant",
     content: "",
     _tempId: tempAssistantId,
-    // 先插入一个 thinking 占位气泡，避免首包返回前界面没有反馈。
     isThinking: true,
     status: "waiting",
   };
 
-  const targetConversationId = currentConvId.value;
-  const currentList = messagesByConversation.value[targetConversationId] || [];
-  messagesByConversation.value[targetConversationId] = [
+  let streamConversationId = currentConvId.value;
+  const currentList = getConversationMessages(streamConversationId);
+  setConversationMessages(streamConversationId, [
     ...currentList,
     tempUserMessage,
     tempAssistantMessage,
-  ];
+  ]);
+
   streamingMessageTempId.value = tempAssistantId;
 
   const activeConversation = ensureActiveConversation(
     conversations.value,
-    currentConvId.value,
+    streamConversationId,
   );
 
   const payload = {
     content,
     model: modelName.value,
   };
-  if (activeConversation && !activeConversation._local && currentConvId.value) {
-    payload.conversation_id = currentConvId.value;
+
+  if (activeConversation && !activeConversation._local && streamConversationId) {
+    payload.conversation_id = streamConversationId;
   } else {
     payload.title =
       activeConversation?.title && activeConversation.title !== t("new_chat")
         ? activeConversation.title
         : content.slice(0, 15) || t("new_chat");
   }
+
   if (useNetwork.value) {
     payload.networkConfig = { search: true };
   }
 
   currentStream.value = sendMessageStream(payload, {
     onStarted(event) {
-      updateConversationAfterStart(event.conversation_id, content);
+      streamConversationId = updateConversationAfterStart(
+        streamConversationId,
+        event.conversation_id,
+        content,
+      );
     },
     onChunk(event) {
-      updateAssistantPlaceholder(tempAssistantId, event.chunk || "");
+      updateAssistantPlaceholder(
+        streamConversationId,
+        tempAssistantId,
+        event.chunk || "",
+      );
     },
     onDone(event) {
-      const list = messagesByConversation.value[currentConvId.value] || [];
-      messagesByConversation.value[currentConvId.value] = list.map((message) =>
-        message._tempId === tempAssistantId
-          ? {
-              ...message,
-              id: event.message_id,
-              isThinking: false,
-              status: "done",
-            }
-          : message,
+      const doneConversationId = event.conversation_id || streamConversationId;
+      setConversationMessages(
+        doneConversationId,
+        getConversationMessages(doneConversationId).map((message) =>
+          message._tempId === tempAssistantId
+            ? {
+                ...message,
+                id: event.message_id,
+                isThinking: false,
+                status: "done",
+              }
+            : message,
+        ),
       );
 
       const currentConversation = ensureActiveConversation(
         conversations.value,
-        event.conversation_id,
+        doneConversationId,
       );
       if (currentConversation) {
         currentConversation.timestamp = Date.now();
@@ -400,52 +450,16 @@ async function handleSend() {
         }
       }
       sortConversationsByTimestamp();
-
-      isStreaming.value = false;
-      streamingMessageTempId.value = null;
-      currentStream.value = null;
+      resetStreamingState();
     },
     onAbort() {
-      if (streamingMessageTempId.value) {
-        const tempId = streamingMessageTempId.value;
-        const currentMessage = (
-          messagesByConversation.value[currentConvId.value] || []
-        ).find((message) => message._tempId === tempId);
-
-        // 有内容就保留在界面上，空气泡则直接移除。
-        if (currentMessage?.content) {
-          updateAssistantMessage(tempId, () => ({
-            isThinking: false,
-            status: "aborted",
-          }));
-        } else {
-          removeAssistantMessage(tempId);
-        }
-      }
-      isStreaming.value = false;
-      streamingMessageTempId.value = null;
-      currentStream.value = null;
+      finalizeAssistantMessage(streamConversationId, tempAssistantId, "aborted");
+      resetStreamingState();
     },
     onError(error) {
       console.error("sendMessageStream error:", error);
-      if (streamingMessageTempId.value) {
-        const tempId = streamingMessageTempId.value;
-        const currentMessage = (
-          messagesByConversation.value[currentConvId.value] || []
-        ).find((message) => message._tempId === tempId);
-
-        if (currentMessage?.content) {
-          updateAssistantMessage(tempId, () => ({
-            isThinking: false,
-            status: "error",
-          }));
-        } else {
-          removeAssistantMessage(tempId);
-        }
-      }
-      isStreaming.value = false;
-      streamingMessageTempId.value = null;
-      currentStream.value = null;
+      finalizeAssistantMessage(streamConversationId, tempAssistantId, "error");
+      resetStreamingState();
     },
   });
 }
@@ -530,7 +544,6 @@ function formatTime(timestamp) {
 watch(
   () => currentMessages.value.map((message) => message.content).join("\n"),
   async () => {
-    // 流式输出期间消息内容会持续增长，这里跟随内容变化自动滚到底部。
     await nextTick();
     messagesEndRef.value?.scrollIntoView({ behavior: "smooth" });
   },
@@ -538,7 +551,6 @@ watch(
 
 watch(input, () => {
   if (!textareaRef.value) return;
-  // 输入框高度自适应，但限制最大高度，避免遮挡消息区域。
   textareaRef.value.style.height = "auto";
   textareaRef.value.style.height = `${Math.min(
     textareaRef.value.scrollHeight,
@@ -551,6 +563,10 @@ onMounted(() => {
     console.error("initConversations error:", error);
     createNewConversation();
   });
+});
+
+onUnmounted(() => {
+  abortCurrentStream();
 });
 </script>
 
