@@ -24,4 +24,42 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (id.includes("element-plus") || id.includes("@element-plus")) {
+            return "vendor-element-plus";
+          }
+          if (
+            id.includes("/vue/") ||
+            id.includes("/@vue/") ||
+            id.includes("vue-router") ||
+            id.includes("pinia")
+          ) {
+            return "vendor-vue";
+          }
+          if (
+            id.includes("markdown-it") ||
+            id.includes("dompurify") ||
+            id.includes("entities") ||
+            id.includes("linkify-it") ||
+            id.includes("mdurl") ||
+            id.includes("uc.micro")
+          ) {
+            return "vendor-markdown";
+          }
+          if (id.includes("lucide-vue-next")) {
+            return "vendor-icons";
+          }
+          if (id.includes("axios")) {
+            return "vendor-axios";
+          }
+          return "vendor-misc";
+        },
+      },
+    },
+  },
 });

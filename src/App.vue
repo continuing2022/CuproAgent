@@ -8,7 +8,7 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
+@use "@/styles/index" as *;
 * {
   margin: 0;
   padding: 0;
@@ -17,7 +17,7 @@ export default {
 </style>
 
 <style lang="scss">
-@import "@/styles/variables.scss";
+@use "@/styles/index" as *;
 html,
 body,
 #app {

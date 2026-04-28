@@ -1,5 +1,7 @@
 <template>
+  <!-- 主容器：collapsed 控制侧边栏收起动画 -->
   <div class="oragen-container" :class="{ collapsed }">
+    <!-- 侧边栏过渡动画 -->
     <transition name="sidebar">
       <Sidebar
         v-if="sidebarOpen"
@@ -15,8 +17,11 @@
       />
     </transition>
 
+    <!-- 聊天主内容区 -->
     <main class="chat-main">
+      <!-- 顶部导航栏 -->
       <header class="chat-header">
+        <!-- 侧边栏收起后显示菜单按钮 -->
         <button v-if="!sidebarOpen" class="menu-btn" @click="toggle()">
           <IconMenu />
         </button>
@@ -26,7 +31,9 @@
         </div>
       </header>
 
+      <!-- 消息展示容器 -->
       <div class="messages-container">
+        <!-- 无消息时显示欢迎页 + 快捷指令 -->
         <div v-if="currentMessages.length === 0" class="welcome-screen">
           <div class="welcome-logo">CU</div>
           <h2>{{ t("welcome_title") }}</h2>
@@ -51,6 +58,7 @@
           </div>
         </div>
 
+        <!-- 有消息时显示消息列表 -->
         <div v-else class="messages-list">
           <div
             v-for="msg in currentMessages"
@@ -58,10 +66,12 @@
             class="message"
             :class="msg.role"
           >
+            <!-- 头像：用户 U / 助手 CU -->
             <div class="message-avatar">
               {{ msg.role === "user" ? "U" : "CU" }}
             </div>
             <div class="message-content">
+              <!-- AI 思考中动画 -->
               <template v-if="msg.role === 'assistant' && msg.isThinking">
                 <div class="thinking-bubble">
                   <span class="thinking-dots" aria-hidden="true">
@@ -71,15 +81,19 @@
                   </span>
                 </div>
               </template>
+              <!-- 渲染 markdown 消息 -->
               <div v-else v-html="renderContent(msg.content)"></div>
             </div>
           </div>
+          <!-- 消息滚动到底部的锚点 -->
           <div ref="messagesEndRef"></div>
         </div>
       </div>
 
+      <!-- 底部输入框区域 -->
       <div class="input-container">
         <div class="input-wrapper">
+          <!-- 工具栏：模型选择 + 联网开关 -->
           <div class="input-toolbar">
             <el-select
               v-model="modelName"
@@ -102,6 +116,7 @@
             />
           </div>
 
+          <!-- 输入框主体 -->
           <div class="input-main">
             <textarea
               ref="textareaRef"
@@ -112,6 +127,7 @@
               :disabled="isStreaming"
             ></textarea>
 
+            <!-- 流式输出中：显示停止按钮 -->
             <button
               v-if="isStreaming"
               class="stop-btn"
@@ -120,6 +136,7 @@
             >
               <IconStop />
             </button>
+            <!-- 未输出：显示发送按钮 -->
             <button
               v-else
               class="send-btn"
@@ -138,8 +155,8 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import MarkdownIt from "markdown-it";
-import DOMPurify from "dompurify";
+import MarkdownIt from "markdown-it"; // markdown 解析
+import DOMPurify from "dompurify"; // XSS 安全过滤
 import Sidebar from "../components/Sidebar.vue";
 import { IconMenu, IconSend, IconStop } from "../components/icons";
 import {
@@ -148,53 +165,60 @@ import {
   getMessages,
   sendMessageStream,
   updateConversation as updateConversationApi,
-} from "@/api";
+} from "@/api"; // 接口请求
 import {
   appendOrUpdateStreamingMessage,
   createLocalConversation,
   ensureActiveConversation,
   normalizeConversationsResponse,
-} from "@/utils/chat";
-import { locale, t } from "@/i18n";
+} from "@/utils/chat"; // 聊天工具函数
+import { locale, t } from "@/i18n"; // 国际化
 
+// 初始化 markdown 解析器
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
 });
 
-const input = ref("");
-const isStreaming = ref(false);
-const useNetwork = ref(false);
-const modelName = ref("qwen-plus");
-const sidebarOpen = ref(true);
-const collapsed = ref(false);
-const textareaRef = ref(null);
-const messagesEndRef = ref(null);
-const currentConvId = ref(null);
-const currentStream = ref(null);
-const streamingMessageTempId = ref(null);
-const conversations = ref([]);
-const messagesByConversation = ref({});
+// ======== 响应式变量 ========
+const input = ref(""); // 输入框内容
+const isStreaming = ref(false); // 是否正在流式输出
+const useNetwork = ref(false); // 是否联网搜索
+const modelName = ref("qwen-plus"); // 当前选择的模型
+const sidebarOpen = ref(true); // 侧边栏是否打开
+const collapsed = ref(false); // 侧边栏是否收起（动画用）
+const textareaRef = ref(null); // 输入框 DOM 引用
+const messagesEndRef = ref(null); // 消息滚动到底部锚点
+const currentConvId = ref(null); // 当前对话 ID
+const currentStream = ref(null); // 当前流式请求实例
+const streamingMessageTempId = ref(null); // 流式消息临时 ID
+const conversations = ref([]); // 对话列表
+const messagesByConversation = ref({}); // 按对话 ID 存储消息
 
+// 计算属性：获取当前对话的消息列表
 const currentMessages = computed(() =>
   getConversationMessages(currentConvId.value),
 );
 
+// 获取指定对话的消息
 function getConversationMessages(conversationId) {
   return messagesByConversation.value[conversationId] || [];
 }
 
+// 设置指定对话的消息
 function setConversationMessages(conversationId, messages) {
   messagesByConversation.value[conversationId] = messages;
 }
 
+// 重置流式输出状态
 function resetStreamingState() {
   isStreaming.value = false;
   streamingMessageTempId.value = null;
   currentStream.value = null;
 }
 
+// 渲染消息内容：markdown + 安全过滤
 function renderContent(text) {
   try {
     return DOMPurify.sanitize(md.render(text || ""));
@@ -203,10 +227,12 @@ function renderContent(text) {
   }
 }
 
+// 设置侧边栏开关
 function setSidebarOpen(value) {
   sidebarOpen.value = value;
 }
 
+// 切换侧边栏展开/收起
 function toggle() {
   collapsed.value = !collapsed.value;
   if (collapsed.value) {
@@ -218,6 +244,7 @@ function toggle() {
   }
 }
 
+// 加载指定对话的消息
 async function loadConversationMessages(conversationId) {
   if (!conversationId) return;
 
@@ -228,6 +255,7 @@ async function loadConversationMessages(conversationId) {
   );
 }
 
+// 切换当前选中的对话
 async function setCurrentConversation(conversationId) {
   if (isStreaming.value) return;
 
@@ -243,12 +271,14 @@ async function setCurrentConversation(conversationId) {
   await loadConversationMessages(conversationId);
 }
 
+// 对话列表按时间倒序排序
 function sortConversationsByTimestamp() {
   conversations.value = [...conversations.value].sort(
     (left, right) => (right.timestamp || 0) - (left.timestamp || 0),
   );
 }
 
+// 创建新对话（本地临时对话）
 function createNewConversation() {
   const existingLocal = conversations.value.find((item) => item._local);
   if (existingLocal) {
@@ -266,6 +296,7 @@ function createNewConversation() {
   setConversationMessages(localConversation.id, []);
 }
 
+// 初始化对话列表
 async function initConversations() {
   const response = await getConversations();
   const normalized = normalizeConversationsResponse(response, t("new_chat"));
@@ -280,7 +311,12 @@ async function initConversations() {
   await loadConversationMessages(normalized[0].id);
 }
 
-function updateConversationAfterStart(sourceConversationId, newConversationId, content) {
+// 发送第一条消息后，本地临时对话转为真实对话
+function updateConversationAfterStart(
+  sourceConversationId,
+  newConversationId,
+  content,
+) {
   const localConversation = conversations.value.find((item) => item._local);
   if (!localConversation || !newConversationId) return sourceConversationId;
 
@@ -305,6 +341,7 @@ function updateConversationAfterStart(sourceConversationId, newConversationId, c
   return newConversationId;
 }
 
+// 更新流式输出的消息片段
 function updateAssistantPlaceholder(conversationId, tempId, chunk) {
   setConversationMessages(
     conversationId,
@@ -317,6 +354,7 @@ function updateAssistantPlaceholder(conversationId, tempId, chunk) {
   );
 }
 
+// 更新 AI 消息状态
 function updateAssistantMessage(conversationId, tempId, updater) {
   setConversationMessages(
     conversationId,
@@ -327,6 +365,7 @@ function updateAssistantMessage(conversationId, tempId, updater) {
   );
 }
 
+// 移除无效的 AI 消息
 function removeAssistantMessage(conversationId, tempId) {
   setConversationMessages(
     conversationId,
@@ -336,6 +375,7 @@ function removeAssistantMessage(conversationId, tempId) {
   );
 }
 
+// 结束流式输出，完成消息状态
 function finalizeAssistantMessage(conversationId, tempId, status) {
   const currentMessage = getConversationMessages(conversationId).find(
     (message) => message._tempId === tempId,
@@ -351,6 +391,7 @@ function finalizeAssistantMessage(conversationId, tempId, status) {
   }
 }
 
+// 发送消息（核心函数）
 async function handleSend() {
   if (!input.value.trim() || isStreaming.value) return;
 
@@ -358,11 +399,13 @@ async function handleSend() {
   input.value = "";
   isStreaming.value = true;
 
+  // 临时用户消息
   const tempUserMessage = {
     role: "user",
     content,
     _tempId: `user-${Date.now()}`,
   };
+  // 临时 AI 消息（占位）
   const tempAssistantId = `assistant-${Date.now()}`;
   const tempAssistantMessage = {
     role: "assistant",
@@ -382,17 +425,23 @@ async function handleSend() {
 
   streamingMessageTempId.value = tempAssistantId;
 
+  // 确保当前对话存在
   const activeConversation = ensureActiveConversation(
     conversations.value,
     streamConversationId,
   );
 
+  // 请求参数
   const payload = {
     content,
     model: modelName.value,
   };
 
-  if (activeConversation && !activeConversation._local && streamConversationId) {
+  if (
+    activeConversation &&
+    !activeConversation._local &&
+    streamConversationId
+  ) {
     payload.conversation_id = streamConversationId;
   } else {
     payload.title =
@@ -401,10 +450,12 @@ async function handleSend() {
         : content.slice(0, 15) || t("new_chat");
   }
 
+  // 联网搜索开关
   if (useNetwork.value) {
     payload.networkConfig = { search: true };
   }
 
+  // 发起流式请求
   currentStream.value = sendMessageStream(payload, {
     onStarted(event) {
       streamConversationId = updateConversationAfterStart(
@@ -436,6 +487,7 @@ async function handleSend() {
         ),
       );
 
+      // 更新对话时间和标题
       const currentConversation = ensureActiveConversation(
         conversations.value,
         doneConversationId,
@@ -452,10 +504,16 @@ async function handleSend() {
       sortConversationsByTimestamp();
       resetStreamingState();
     },
+    // 主动停止输出
     onAbort() {
-      finalizeAssistantMessage(streamConversationId, tempAssistantId, "aborted");
+      finalizeAssistantMessage(
+        streamConversationId,
+        tempAssistantId,
+        "aborted",
+      );
       resetStreamingState();
     },
+    // 输出出错
     onError(error) {
       console.error("sendMessageStream error:", error);
       finalizeAssistantMessage(streamConversationId, tempAssistantId, "error");
@@ -464,10 +522,12 @@ async function handleSend() {
   });
 }
 
+// 停止当前流式输出
 function abortCurrentStream() {
   currentStream.value?.abort?.();
 }
 
+// 重命名对话
 async function renameConversation(conversation, title) {
   const nextTitle = String(title || "").trim();
   if (!nextTitle) return;
@@ -491,6 +551,7 @@ async function renameConversation(conversation, title) {
   sortConversationsByTimestamp();
 }
 
+// 删除对话
 async function removeConversation(conversation) {
   if (conversations.value.length === 1) return;
 
@@ -507,6 +568,7 @@ async function removeConversation(conversation) {
     delete messagesByConversation.value[conversation.id];
   }
 
+  // 如果删除的是当前对话，自动切换到第一个
   if (currentConvId.value === conversation.id) {
     const nextConversation = conversations.value[0];
     if (nextConversation) {
@@ -518,6 +580,7 @@ async function removeConversation(conversation) {
   }
 }
 
+// 键盘回车发送消息（shift+回车换行）
 function handleKeyDown(event) {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -525,6 +588,7 @@ function handleKeyDown(event) {
   }
 }
 
+// 格式化对话时间（刚刚、几分钟前、几小时前）
 function formatTime(timestamp) {
   const now = Date.now();
   const diff = now - timestamp;
@@ -541,6 +605,7 @@ function formatTime(timestamp) {
   );
 }
 
+// 监听消息变化，自动滚动到底部
 watch(
   () => currentMessages.value.map((message) => message.content).join("\n"),
   async () => {
@@ -549,6 +614,7 @@ watch(
   },
 );
 
+// 监听输入框内容，自动调整高度
 watch(input, () => {
   if (!textareaRef.value) return;
   textareaRef.value.style.height = "auto";
@@ -558,6 +624,7 @@ watch(input, () => {
   )}px`;
 });
 
+// 页面挂载：初始化对话列表
 onMounted(() => {
   initConversations().catch((error) => {
     console.error("initConversations error:", error);
@@ -565,13 +632,14 @@ onMounted(() => {
   });
 });
 
+// 页面卸载：终止流式请求
 onUnmounted(() => {
   abortCurrentStream();
 });
 </script>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
+@use "@/styles/index" as *;
 
 * {
   margin: 0;

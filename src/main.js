@@ -2,8 +2,6 @@ import { createApp } from "vue";
 import { ElMessage } from "element-plus";
 import App from "./App.vue";
 import router from "./router";
-import ElementPlus from "element-plus";
-import "element-plus/dist/index.css";
 import "./styles/element-overrides.css";
 import i18n, { t } from "@/i18n";
 import { setupIdleLogout } from "@/utils/idleLogout";
@@ -11,7 +9,6 @@ import { clearAuthSession, hasAccessToken } from "@/utils/authStorage";
 
 const app = createApp(App);
 app.use(router);
-app.use(ElementPlus);
 app.use(i18n);
 app.mount("#app");
 

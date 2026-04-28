@@ -134,7 +134,7 @@ async function handleRename(conversation) {
 </script>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
+@use "@/styles/index" as *;
 
 .sidebar {
   width: 280px;
@@ -318,3 +318,4 @@ async function handleRename(conversation) {
   border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 </style>
+
