@@ -106,6 +106,7 @@ async function handleRename(conversation) {
   try {
     const { value } = await ElMessageBox.prompt(
       t("rename_conversation_message"),
+      t("rename_conversation"),
       {
         confirmButtonText: t("save"),
         cancelButtonText: t("cancel"),

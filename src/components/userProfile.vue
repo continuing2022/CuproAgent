@@ -23,11 +23,8 @@
             </div>
 
             <div class="dropdown-menu">
-              <div
-                class="menu-item"
-                style="justify-content: space-between; align-items: center"
-              >
-                <div style="display: flex; align-items: center; gap: 0.75rem">
+              <div class="menu-item language-item">
+                <div class="language-item-content">
                   <Settings class="menu-icon" />
                   <el-switch
                     class="language-switch"
@@ -195,21 +192,24 @@ const onUserManage = async () => {
 }
 
 .dropdown-wrapper {
-  z-index: 50;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 220;
 }
 
 .dropdown-mask {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 210;
   cursor: pointer;
 }
 
 .dropdown-content {
-  position: absolute;
-  left: -10px;
-  top: -345px;
-  width: 265px;
+  position: relative;
+  width: 100%;
+  min-width: 260px;
   background: linear-gradient(135deg, #fff 0%, #fff8f3 100%);
   border-radius: 0.75rem;
   box-shadow:
@@ -217,7 +217,7 @@ const onUserManage = async () => {
     0 0 0 1px rgba(255, 140, 58, 0.1);
   overflow: hidden;
   border: 2px solid #ff8c3a;
-  z-index: 50;
+  z-index: 220;
 }
 
 .dropdown-header {
@@ -268,6 +268,19 @@ const onUserManage = async () => {
   cursor: pointer;
   font-weight: 500;
   position: relative;
+}
+
+.language-item {
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+}
+
+.language-item-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
 }
 
 .menu-item::before {

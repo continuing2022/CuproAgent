@@ -62,7 +62,7 @@
         <div v-else class="messages-list">
           <div
             v-for="msg in currentMessages"
-            :key="msg.id || msg._tempId"
+            :key="msg.id || msg.message_id || msg._tempId"
             class="message"
             :class="msg.role"
           >
@@ -110,8 +110,8 @@
 
             <el-switch
               v-model="useNetwork"
-              active-text="Web"
-              inactive-text="Local"
+              :active-text="locale === 'zh' ? '\u8054\u7f51' : 'Web'"
+              :inactive-text="locale === 'zh' ? '\u672c\u5730' : 'Local'"
               size="small"
             />
           </div>
@@ -171,6 +171,7 @@ import {
   createLocalConversation,
   ensureActiveConversation,
   normalizeConversationsResponse,
+  normalizeMessagesResponse,
 } from "@/utils/chat"; // 聊天工具函数
 import { locale, t } from "@/i18n"; // 国际化
 
@@ -249,10 +250,7 @@ async function loadConversationMessages(conversationId) {
   if (!conversationId) return;
 
   const response = await getMessages(conversationId);
-  setConversationMessages(
-    conversationId,
-    Array.isArray(response?.messages) ? response.messages : [],
-  );
+  setConversationMessages(conversationId, normalizeMessagesResponse(response));
 }
 
 // 切换当前选中的对话
@@ -468,7 +466,7 @@ async function handleSend() {
       updateAssistantPlaceholder(
         streamConversationId,
         tempAssistantId,
-        event.chunk || "",
+        typeof event?.chunk === "string" ? event.chunk : "",
       );
     },
     onDone(event) {
@@ -480,6 +478,7 @@ async function handleSend() {
             ? {
                 ...message,
                 id: event.message_id,
+                message_id: event.message_id,
                 isThinking: false,
                 status: "done",
               }

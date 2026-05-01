@@ -218,18 +218,22 @@ function dispatchSseEvent(event, handlers = {}) {
     default:
       if (event.started) onStarted?.(event);
       if (event.retrieved) onRetrieved?.(event);
-      if (event.chunk) onChunk?.(event);
-      if (event.done) onDone?.(event);
+      if (Object.prototype.hasOwnProperty.call(event, "chunk")) onChunk?.(event);
+      if (event.done || Object.prototype.hasOwnProperty.call(event, "message_id")) {
+        onDone?.(event);
+      }
       if (event.error) onError?.(event.error);
       break;
   }
 }
 
 function processSsePart(part, handlers) {
-  if (!part.trim() || part.startsWith(":")) return;
+  const normalizedPart = String(part || "");
+  if (!normalizedPart.trim() || normalizedPart.trimStart().startsWith(":")) return;
 
-  const dataLines = part
-    .split("\n")
+  const dataLines = normalizedPart
+    .split(/\r?\n/)
+    .map((line) => line.trimStart())
     .filter((line) => line.startsWith("data:"))
     .map((line) => line.replace(/^data:\s?/, ""));
 
@@ -289,7 +293,7 @@ export function sendMessageStream(
           stream: !done,
         });
 
-        const parts = buffer.split("\n\n");
+        const parts = buffer.split(/\r?\n\r?\n/);
         buffer = parts.pop() || "";
         parts.forEach((part) => processSsePart(part, handlers));
 

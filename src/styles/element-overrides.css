@@ -1,8 +1,18 @@
+﻿/* Shared Message / MessageBox overrides */
+.el-message {
+  z-index: 3500 !important;
+}
 
-/* 共享确认框/输入框样式 - CuproAgent 橙色主题 */
-.logout-confirm-box,
-.delete-confirm-box,
-.rename-conversation-box {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) {
+  z-index: 3400 !important;
+}
+
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box,
+.el-message-box.logout-confirm-box,
+.el-message-box.delete-confirm-box,
+.el-message-box.rename-conversation-box {
+  width: min(92vw, 520px) !important;
+  max-width: min(92vw, 520px) !important;
   border-radius: 12px !important;
   padding: 20px !important;
   background: linear-gradient(135deg, #fff 0%, #fff5f0 100%);
@@ -12,44 +22,44 @@
     0 0 0 1px rgba(255, 140, 58, 0.08);
 }
 
-/* 标题样式 */
-.logout-confirm-box .el-message-box__title,
-.delete-confirm-box .el-message-box__title,
-.rename-conversation-box .el-message-box__title {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box__title,
+.el-message-box.logout-confirm-box .el-message-box__title,
+.el-message-box.delete-confirm-box .el-message-box__title,
+.el-message-box.rename-conversation-box .el-message-box__title {
   color: #ff7a1f;
   font-weight: 600;
   font-size: 18px;
 }
 
-/* 内容文字样式 */
-.logout-confirm-box .el-message-box__content,
-.delete-confirm-box .el-message-box__content,
-.rename-conversation-box .el-message-box__content {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box__content,
+.el-message-box.logout-confirm-box .el-message-box__content,
+.el-message-box.delete-confirm-box .el-message-box__content,
+.el-message-box.rename-conversation-box .el-message-box__content {
   color: #666;
   font-size: 14px;
 }
 
-/* 警告图标样式 */
-.logout-confirm-box .el-message-box__status,
-.delete-confirm-box .el-message-box__status {
+:is(.logout-confirm-box, .delete-confirm-box) .el-message-box__status,
+.el-message-box.logout-confirm-box .el-message-box__status,
+.el-message-box.delete-confirm-box .el-message-box__status {
   color: #ff8c3a !important;
   font-size: 24px;
 }
 
-/* 按钮容器 */
-.logout-confirm-box .el-message-box__btns,
-.delete-confirm-box .el-message-box__btns,
-.rename-conversation-box .el-message-box__btns {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box__btns,
+.el-message-box.logout-confirm-box .el-message-box__btns,
+.el-message-box.delete-confirm-box .el-message-box__btns,
+.el-message-box.rename-conversation-box .el-message-box__btns {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   padding-top: 10px;
 }
 
-/* 确认按钮样式 */
-.logout-confirm-box .el-button--primary,
-.delete-confirm-box .el-button--primary,
-.rename-conversation-box .el-button--primary {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-button--primary,
+.el-message-box.logout-confirm-box .el-button--primary,
+.el-message-box.delete-confirm-box .el-button--primary,
+.el-message-box.rename-conversation-box .el-button--primary {
   background: linear-gradient(135deg, #ff8c3a 0%, #ff7a1f 100%);
   border: none;
   color: #fff;
@@ -61,24 +71,26 @@
   min-width: 92px;
 }
 
-.logout-confirm-box .el-button--primary:hover,
-.delete-confirm-box .el-button--primary:hover,
-.rename-conversation-box .el-button--primary:hover {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-button--primary:hover,
+.el-message-box.logout-confirm-box .el-button--primary:hover,
+.el-message-box.delete-confirm-box .el-button--primary:hover,
+.el-message-box.rename-conversation-box .el-button--primary:hover {
   background: linear-gradient(135deg, #ff7a1f 0%, #ff6a0f 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(255, 122, 31, 0.4);
 }
 
-.logout-confirm-box .el-button--primary:active,
-.delete-confirm-box .el-button--primary:active,
-.rename-conversation-box .el-button--primary:active {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-button--primary:active,
+.el-message-box.logout-confirm-box .el-button--primary:active,
+.el-message-box.delete-confirm-box .el-button--primary:active,
+.el-message-box.rename-conversation-box .el-button--primary:active {
   transform: translateY(0);
 }
 
-/* 取消按钮样式 */
-.logout-confirm-box .el-button--default,
-.delete-confirm-box .el-button--default,
-.rename-conversation-box .el-button--default {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-button--default,
+.el-message-box.logout-confirm-box .el-button--default,
+.el-message-box.delete-confirm-box .el-button--default,
+.el-message-box.rename-conversation-box .el-button--default {
   background: #fff;
   border: 2px solid #ff8c3a;
   color: #ff7a1f;
@@ -89,55 +101,62 @@
   min-width: 92px;
 }
 
-.logout-confirm-box .el-button:hover,
-.delete-confirm-box .el-button:hover,
-.rename-conversation-box .el-button:hover {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-button:hover,
+.el-message-box.logout-confirm-box .el-button:hover,
+.el-message-box.delete-confirm-box .el-button:hover,
+.el-message-box.rename-conversation-box .el-button:hover {
   background: #fff5f0;
   border-color: #ff7a1f;
   color: #ff6a0f;
 }
 
-/* 关闭按钮样式 */
-.logout-confirm-box .el-message-box__headerbtn,
-.delete-confirm-box .el-message-box__headerbtn,
-.rename-conversation-box .el-message-box__headerbtn {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box__headerbtn,
+.el-message-box.logout-confirm-box .el-message-box__headerbtn,
+.el-message-box.delete-confirm-box .el-message-box__headerbtn,
+.el-message-box.rename-conversation-box .el-message-box__headerbtn {
   top: 16px;
   right: 16px;
   font-size: 18px;
 }
 
-.logout-confirm-box .el-message-box__headerbtn .el-message-box__close,
-.delete-confirm-box .el-message-box__headerbtn .el-message-box__close,
-.rename-conversation-box .el-message-box__headerbtn .el-message-box__close {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box__headerbtn .el-message-box__close,
+.el-message-box.logout-confirm-box .el-message-box__headerbtn .el-message-box__close,
+.el-message-box.delete-confirm-box .el-message-box__headerbtn .el-message-box__close,
+.el-message-box.rename-conversation-box .el-message-box__headerbtn .el-message-box__close {
   color: #ff8c3a;
   transition: color 0.3s ease;
 }
 
-.logout-confirm-box .el-message-box__headerbtn:hover .el-message-box__close,
-.delete-confirm-box .el-message-box__headerbtn:hover .el-message-box__close,
-.rename-conversation-box .el-message-box__headerbtn:hover .el-message-box__close {
+:is(.logout-confirm-box, .delete-confirm-box, .rename-conversation-box) .el-message-box__headerbtn:hover .el-message-box__close,
+.el-message-box.logout-confirm-box .el-message-box__headerbtn:hover .el-message-box__close,
+.el-message-box.delete-confirm-box .el-message-box__headerbtn:hover .el-message-box__close,
+.el-message-box.rename-conversation-box .el-message-box__headerbtn:hover .el-message-box__close {
   color: #ff7a1f;
 }
 
-.rename-conversation-box .el-message-box__header,
-.logout-confirm-box .el-message-box__header,
-.delete-confirm-box .el-message-box__header {
+:is(.rename-conversation-box, .logout-confirm-box, .delete-confirm-box) .el-message-box__header,
+.el-message-box.rename-conversation-box .el-message-box__header,
+.el-message-box.logout-confirm-box .el-message-box__header,
+.el-message-box.delete-confirm-box .el-message-box__header {
   padding-bottom: 6px;
 }
 
-.rename-conversation-box .el-message-box__message,
-.logout-confirm-box .el-message-box__message,
-.delete-confirm-box .el-message-box__message {
+:is(.rename-conversation-box, .logout-confirm-box, .delete-confirm-box) .el-message-box__message,
+.el-message-box.rename-conversation-box .el-message-box__message,
+.el-message-box.logout-confirm-box .el-message-box__message,
+.el-message-box.delete-confirm-box .el-message-box__message {
   color: #7b664f;
   font-weight: 500;
   line-height: 1.7;
 }
 
-.rename-conversation-box .el-message-box__input {
+:is(.rename-conversation-box) .el-message-box__input,
+.el-message-box.rename-conversation-box .el-message-box__input {
   padding-top: 4px;
 }
 
-.rename-conversation-box .el-input__wrapper {
+:is(.rename-conversation-box) .el-input__wrapper,
+.el-message-box.rename-conversation-box .el-input__wrapper {
   min-height: 48px;
   border-radius: 12px;
   background: #fffaf5;
@@ -145,43 +164,49 @@
   transition: box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.rename-conversation-box .el-input__wrapper:hover {
+:is(.rename-conversation-box) .el-input__wrapper:hover,
+.el-message-box.rename-conversation-box .el-input__wrapper:hover {
   background: #fff8f1;
   box-shadow:
     inset 0 0 0 1px rgba(255, 156, 58, 0.38),
     0 6px 14px rgba(255, 140, 0, 0.08);
 }
 
-.rename-conversation-box .el-input__wrapper.is-focus,
-.rename-conversation-box .el-input__wrapper:focus-within {
+:is(.rename-conversation-box) .el-input__wrapper.is-focus,
+:is(.rename-conversation-box) .el-input__wrapper:focus-within,
+.el-message-box.rename-conversation-box .el-input__wrapper.is-focus,
+.el-message-box.rename-conversation-box .el-input__wrapper:focus-within {
   background: #fff8f2;
   box-shadow:
     inset 0 0 0 1.5px rgba(255, 140, 0, 0.48),
     0 0 0 3px rgba(255, 186, 102, 0.14);
 }
 
-.rename-conversation-box .el-input__inner {
+:is(.rename-conversation-box) .el-input__inner,
+.el-message-box.rename-conversation-box .el-input__inner {
   color: #8e531f;
   font-weight: 600;
 }
 
-.rename-conversation-box .el-input__inner::placeholder {
+:is(.rename-conversation-box) .el-input__inner::placeholder,
+.el-message-box.rename-conversation-box .el-input__inner::placeholder {
   color: #d1a06d;
   font-weight: 500;
 }
 
-.rename-conversation-box .el-message-box__errormsg {
+:is(.rename-conversation-box) .el-message-box__errormsg,
+.el-message-box.rename-conversation-box .el-message-box__errormsg {
   display: none;
 }
 
-.rename-conversation-box .el-input__wrapper.is-error {
+:is(.rename-conversation-box) .el-input__wrapper.is-error,
+.el-message-box.rename-conversation-box .el-input__wrapper.is-error {
   background: #fff7f1;
   box-shadow:
     inset 0 0 0 1.5px rgba(234, 88, 12, 0.48),
     0 0 0 3px rgba(251, 146, 60, 0.12);
 }
-
-/* 动画 */
+/* 鍔ㄧ敾 */
 
 .animate-in {
   animation: pop-in 0.5s ease-out forwards;
@@ -206,13 +231,13 @@
   }
 }
 
-/* 选择器（Select）和单选（Radio）覆盖样式 - 黄色主题 */
+/* 閫夋嫨鍣紙Select锛夊拰鍗曢€夛紙Radio锛夎鐩栨牱寮?- 榛勮壊涓婚 */
 :root {
   --primary-yellow: #f6a623;
   --primary-yellow-dark: #f39c12;
 }
 
-/* Select 输入框边框与聚焦态 */
+/* Select 杈撳叆妗嗚竟妗嗕笌鑱氱劍鎬?*/
 .el-select .el-input__inner {
   border-color: var(--primary-yellow) !important;
 }
@@ -226,14 +251,14 @@
   color: var(--primary-yellow) !important;
 }
 
-/* 下拉项选中/悬停样式 */
+/* 涓嬫媺椤归€変腑/鎮仠鏍峰紡 */
 .el-select-dropdown .el-select-dropdown__item--selected,
 .el-select-dropdown .el-select-dropdown__item:hover {
   background-color: rgba(246,166,35,0.06) !important;
   color: var(--primary-yellow-dark) !important;
 }
 
-/* 单选按钮样式 */
+/* 鍗曢€夋寜閽牱寮?*/
 .el-radio.is-checked .el-radio__inner {
   background-color: var(--primary-yellow) !important;
   border-color: var(--primary-yellow) !important;
@@ -250,19 +275,19 @@
   border-color: rgba(246,166,35,0.6) !important;
 }
 
-/* 兼容性：按钮、tag 等使用 primary 颜色的控件也可偏向黄色 */
+/* 鍏煎鎬э細鎸夐挳銆乼ag 绛変娇鐢?primary 棰滆壊鐨勬帶浠朵篃鍙亸鍚戦粍鑹?*/
 .el-button--primary {
   background-color: var(--primary-yellow) !important;
   border-color: var(--primary-yellow) !important;
 }
 
-/* 更高优先级覆盖：确保下拉已选项、下拉项文本、以及 Select 显示的选中文本为黄色 */
+/* 鏇撮珮浼樺厛绾ц鐩栵細纭繚涓嬫媺宸查€夐」銆佷笅鎷夐」鏂囨湰銆佷互鍙?Select 鏄剧ず鐨勯€変腑鏂囨湰涓洪粍鑹?*/
 .el-select,
 .el-select * {
   color-adjust: exact;
 }
 
-/* 强制下拉列表项已选、活跃态颜色 */
+/* 寮哄埗涓嬫媺鍒楄〃椤瑰凡閫夈€佹椿璺冩€侀鑹?*/
 .el-select-dropdown .el-select-dropdown__item--selected,
 .el-select-dropdown .el-select-dropdown__item.is-active,
 .el-select-dropdown .el-select-dropdown__item.selected,
@@ -271,7 +296,7 @@
   color: var(--primary-yellow-dark) !important;
 }
 
-/* 下拉内的链接或强调文字也覆盖颜色 */
+/* 涓嬫媺鍐呯殑閾炬帴鎴栧己璋冩枃瀛椾篃瑕嗙洊棰滆壊 */
 .el-select-dropdown .el-select-dropdown__item--selected a,
 .el-select-dropdown .el-select-dropdown__item--selected span,
 .el-select-dropdown .el-select-dropdown__item.is-active a,
@@ -279,7 +304,7 @@
   color: var(--primary-yellow-dark) !important;
 }
 
-/* Select 控件中显示的选中文本（单选/占位文本） */
+/* Select 鎺т欢涓樉绀虹殑閫変腑鏂囨湰锛堝崟閫?鍗犱綅鏂囨湰锛?*/
 .el-select .el-input__inner,
 .el-select .el-input__inner .el-select__tags,
 .el-select .el-input__inner .el-select__tags-text,
@@ -289,7 +314,7 @@
   color: var(--primary-yellow-dark) !important;
 }
 
-/* 兼容：对带 scoped 样式的组件使用深度选择器的等价规则（提高优先级） */
+/* 鍏煎锛氬甯?scoped 鏍峰紡鐨勭粍浠朵娇鐢ㄦ繁搴﹂€夋嫨鍣ㄧ殑绛変环瑙勫垯锛堟彁楂樹紭鍏堢骇锛?*/
 :root .el-select .el-input__inner,
 :root .el-select .el-input__inner * {
   color: var(--primary-yellow-dark) !important;
@@ -429,7 +454,7 @@
 }
 
 .oragen-container .input-wrapper .input-toolbar .el-switch::after {
-  content: "本地";
+  content: "联网";
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
@@ -437,7 +462,7 @@
 }
 
 .oragen-container .input-wrapper .input-toolbar .el-switch.is-checked::after {
-  content: "联网";
+  content: "本地";
   color: #c76a00;
 }
 
@@ -508,3 +533,4 @@
     justify-self: start;
   }
 }
+
