@@ -28,9 +28,17 @@ function flushPendingRequests(handler) {
 }
 
 function normalizeHttpError(error) {
-  return (
-    error?.response?.data || { message: error?.message || "Network Error" }
-  );
+  const data = error?.response?.data;
+  if (data && typeof data === "object") {
+    const fieldErrors = data.fieldErrors || data.errors || null;
+    return {
+      ...data,
+      fieldErrors,
+      errors: fieldErrors,
+      message: data.message || data.error || error?.message || "Network Error",
+    };
+  }
+  return { message: error?.message || "Network Error" };
 }
 
 api.interceptors.request.use(

@@ -13,7 +13,7 @@ app.use(router);
 app.use(i18n);
 app.mount("#app");
 
-// setupIdleLogout(router, { idleMs: 3 * 1000 });
+// setupIdleLogout(router, { idleMs: 30 * 1000 });
 
 let previousTokenState = hasAccessToken();
 
