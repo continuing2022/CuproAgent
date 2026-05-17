@@ -454,7 +454,7 @@
 }
 
 .oragen-container .input-wrapper .input-toolbar .el-switch::after {
-  content: "联网";
+  content: "internet";
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
@@ -462,7 +462,7 @@
 }
 
 .oragen-container .input-wrapper .input-toolbar .el-switch.is-checked::after {
-  content: "本地";
+  content: "local";
   color: #c76a00;
 }
 

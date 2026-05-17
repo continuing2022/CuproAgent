@@ -28,7 +28,9 @@ function flushPendingRequests(handler) {
 }
 
 function normalizeHttpError(error) {
-  return error?.response?.data || { message: error?.message || "Network Error" };
+  return (
+    error?.response?.data || { message: error?.message || "Network Error" }
+  );
 }
 
 api.interceptors.request.use(
@@ -42,7 +44,6 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error),
 );
-
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -52,18 +53,14 @@ api.interceptors.response.use(
     if (!originalRequest || status !== 401) {
       return Promise.reject(normalizeHttpError(error));
     }
-
     if (isRefreshRequest(originalRequest)) {
       clearAuthSession();
       return Promise.reject(normalizeHttpError(error));
     }
-
     if (originalRequest._retry) {
       return Promise.reject(normalizeHttpError(error));
     }
-
     originalRequest._retry = true;
-
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         pendingRequests.push({
@@ -76,18 +73,14 @@ api.interceptors.response.use(
         });
       });
     }
-
     isRefreshing = true;
-
     try {
       const data = await refreshToken();
       if (!data.accessToken) {
         throw new Error("No access token returned from refresh");
       }
-
       setAuthSession({ accessToken: data.accessToken });
       flushPendingRequests(({ resolve }) => resolve(data.accessToken));
-
       originalRequest.headers = originalRequest.headers || {};
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
       return api(originalRequest);
@@ -218,8 +211,12 @@ function dispatchSseEvent(event, handlers = {}) {
     default:
       if (event.started) onStarted?.(event);
       if (event.retrieved) onRetrieved?.(event);
-      if (Object.prototype.hasOwnProperty.call(event, "chunk")) onChunk?.(event);
-      if (event.done || Object.prototype.hasOwnProperty.call(event, "message_id")) {
+      if (Object.prototype.hasOwnProperty.call(event, "chunk"))
+        onChunk?.(event);
+      if (
+        event.done ||
+        Object.prototype.hasOwnProperty.call(event, "message_id")
+      ) {
         onDone?.(event);
       }
       if (event.error) onError?.(event.error);
@@ -229,7 +226,8 @@ function dispatchSseEvent(event, handlers = {}) {
 
 function processSsePart(part, handlers) {
   const normalizedPart = String(part || "");
-  if (!normalizedPart.trim() || normalizedPart.trimStart().startsWith(":")) return;
+  if (!normalizedPart.trim() || normalizedPart.trimStart().startsWith(":"))
+    return;
 
   const dataLines = normalizedPart
     .split(/\r?\n/)

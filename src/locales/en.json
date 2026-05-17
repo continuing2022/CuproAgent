@@ -137,5 +137,7 @@
   "conversation_title_required": "Please enter a conversation title",
   "conversation_title_too_long": "Conversation title must be 255 characters or fewer",
   "conversation_renamed": "Conversation renamed",
-  "rename_conversation_failed": "Failed to rename conversation"
+  "rename_conversation_failed": "Failed to rename conversation",
+  "network": "network",
+  "local": "local"
 }

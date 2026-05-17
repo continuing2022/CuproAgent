@@ -59,13 +59,6 @@
             <el-option :label="t('admin')" value="admin" />
             <el-option :label="t('normal_user')" value="user" />
           </el-select>
-
-          <el-button class="btn-reset" @click="resetFilters">
-            <el-icon class="btn-icon">
-              <Refresh />
-            </el-icon>
-            {{ t("reset") }}
-          </el-button>
         </div>
       </div>
     </el-card>
@@ -447,14 +440,6 @@ async function fetchUsers() {
     ElMessage.error(err.error || err.message || t("get_user_list_failed"));
   }
 }
-
-// 方法
-const resetFilters = () => {
-  searchQuery.value = "";
-  filterRole.value = "";
-  currentPage.value = 1;
-  void fetchUsers();
-};
 
 const router = useRouter();
 const goBack = () => {

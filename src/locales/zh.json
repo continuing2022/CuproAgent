@@ -125,6 +125,9 @@
   "exported_suffix": "条用户数据",
   "export_failed": "导出失败",
   "get_user_detail_failed": "获取用户详情失败",
+  "network": "联网",
+  "local": "本地",
+
   "delete_conversation": "\u5220\u9664\u4f1a\u8bdd",
   "delete_conversation_confirm_title": "\u5220\u9664\u786e\u8ba4",
   "delete_conversation_confirm_message": "\u786e\u5b9a\u8981\u5220\u9664\u300c{title}\u300d\u5417\uff1f\u8be5\u64cd\u4f5c\u4e0d\u53ef\u64a4\u9500\u3002",
