@@ -1,6 +1,7 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { t } from "@/i18n";
 import { userLogout } from "@/api";
+import { hasAccessToken } from "@/utils/authStorage";
 
 const DEFAULT_IDLE_MS = 30 * 60 * 1000;
 const DEFAULT_WARN_MS = 30 * 1000;
@@ -41,9 +42,8 @@ export function setupIdleLogout(router, options = {}) {
   };
 
   const shouldTrack = () => {
-    const token = localStorage.getItem("accessToken");
     const currentRoute = router.currentRoute.value;
-    return Boolean(token) && currentRoute?.name !== "Login";
+    return hasAccessToken() && currentRoute?.name !== "Login";
   };
 
   const logout = async () => {
