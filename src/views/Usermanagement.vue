@@ -37,7 +37,8 @@
           :placeholder="t('search_user_email')"
           class="search-input"
           clearable
-          @change="fetchUsers"
+          @change="handleFiltersChange"
+          @clear="handleFiltersChange"
         >
           <template #prefix>
             <el-icon>
@@ -53,7 +54,7 @@
             clearable
             class="filter-select"
             popper-class="model-select-popper user-role-select-popper"
-            @change="fetchUsers"
+            @change="handleFiltersChange"
           >
             <el-option :label="t('all_roles')" value="" />
             <el-option :label="t('admin')" value="admin" />
@@ -111,7 +112,7 @@
     <!-- 用户列表表格 -->
     <el-card class="table-card" shadow="never">
       <el-table
-        :data="paginatedUsers"
+        :data="users"
         style="width: 100%"
         @selection-change="handleSelectionChange"
         :header-cell-style="{
@@ -201,6 +202,19 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="table-footer">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next"
+          :total="total"
+          :current-page="currentPage"
+          :page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
+        />
+      </div>
     </el-card>
 
     <!-- 批量操作栏 -->
@@ -296,7 +310,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -304,7 +318,6 @@ import {
   ArrowLeft,
   Plus,
   Search,
-  Refresh,
   UserFilled,
   Management,
   Avatar,
@@ -419,9 +432,6 @@ async function fetchCurrentUser() {
   }
 }
 
-// 分页后的用户列表（后端已分页，直接使用 users）
-const paginatedUsers = computed(() => users.value);
-
 // 从后端获取用户列表
 async function fetchUsers() {
   try {
@@ -432,13 +442,30 @@ async function fetchUsers() {
       pageSize: pageSize.value,
     };
     const res = await getUsers(params);
-    // 假定后端返回 { users: [...], total, page, pageSize }
     users.value = (res.users || []).map((user) => ensureAvatarColor(user));
     total.value = res.total || users.value.length;
+    currentPage.value = Number(res.page) || currentPage.value;
+    pageSize.value = Number(res.pageSize) || pageSize.value;
   } catch (err) {
     console.error(err);
     ElMessage.error(err.error || err.message || t("get_user_list_failed"));
   }
+}
+
+async function handleFiltersChange() {
+  currentPage.value = 1;
+  await fetchUsers();
+}
+
+async function handlePageChange(page) {
+  currentPage.value = page;
+  await fetchUsers();
+}
+
+async function handlePageSizeChange(size) {
+  pageSize.value = size;
+  currentPage.value = 1;
+  await fetchUsers();
 }
 
 const router = useRouter();
@@ -813,6 +840,12 @@ onUnmounted(() => {
   margin-bottom: 2rem;
 }
 
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
 /* 用户信息 */
 .user-info {
   display: flex;
@@ -1085,6 +1118,10 @@ onUnmounted(() => {
 
   .stats-cards {
     grid-template-columns: 1fr;
+  }
+
+  .table-footer {
+    justify-content: center;
   }
 
   .bulk-actions {

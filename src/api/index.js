@@ -2,7 +2,6 @@ import axios from "axios";
 import {
   clearAuthSession,
   getAccessToken,
-  getRefreshToken,
   setAuthSession,
 } from "@/utils/authStorage";
 
@@ -10,9 +9,25 @@ let isRefreshing = false;
 let pendingRequests = [];
 const REFRESH_ENDPOINT = "/auth/refresh";
 
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = String(
+    import.meta.env.VITE_API_BASE_URL || "",
+  ).trim();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
+  }
+
+  return "http://127.0.0.1:3000";
+}
+
 const api = axios.create({
-  baseURL: "http://127.0.0.1:3000",
+  baseURL: resolveApiBaseUrl(),
   timeout: 10000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -39,6 +54,33 @@ function normalizeHttpError(error) {
     };
   }
   return { message: error?.message || "Network Error" };
+}
+
+export async function refreshToken() {
+  const res = await api.post("/auth/refresh");
+  return res.data;
+}
+
+async function syncSessionAfterRefresh() {
+  const data = await refreshToken();
+  if (!data.accessToken) {
+    throw new Error("No access token returned from refresh");
+  }
+
+  setAuthSession({
+    accessToken: data.accessToken,
+  });
+  return data;
+}
+
+export async function restoreSession() {
+  try {
+    await syncSessionAfterRefresh();
+    return true;
+  } catch (error) {
+    clearAuthSession();
+    return false;
+  }
 }
 
 api.interceptors.request.use(
@@ -83,11 +125,7 @@ api.interceptors.response.use(
     }
     isRefreshing = true;
     try {
-      const data = await refreshToken();
-      if (!data.accessToken) {
-        throw new Error("No access token returned from refresh");
-      }
-      setAuthSession({ accessToken: data.accessToken });
+      const data = await syncSessionAfterRefresh();
       flushPendingRequests(({ resolve }) => resolve(data.accessToken));
       originalRequest.headers = originalRequest.headers || {};
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
@@ -113,22 +151,12 @@ export async function userRegister(payload) {
 }
 
 export async function userLogout() {
-  const refreshToken = getRefreshToken();
   try {
-    const res = await api.post("/auth/logout", { refreshToken });
+    const res = await api.post("/auth/logout");
     return res.data;
   } finally {
     clearAuthSession();
   }
-}
-
-export async function refreshToken() {
-  const refreshTokenValue = getRefreshToken();
-  if (!refreshTokenValue) throw new Error("No refresh token available");
-  const res = await api.post("/auth/refresh", {
-    refreshToken: refreshTokenValue,
-  });
-  return res.data;
 }
 
 export async function getUsers(params = {}) {
@@ -257,6 +285,56 @@ function processSsePart(part, handlers) {
   dispatchSseEvent(event, handlers);
 }
 
+async function parseFailedStreamResponse(response) {
+  const responseText = await response.text();
+  try {
+    const payload = JSON.parse(responseText);
+    return (
+      payload?.message ||
+      payload?.error ||
+      responseText ||
+      `HTTP ${response.status}`
+    );
+  } catch (_) {
+    return responseText || `HTTP ${response.status}`;
+  }
+}
+
+async function openStreamResponse(payload, controller, allowRefreshRetry = true) {
+  const headers = {
+    Accept: "text/event-stream",
+    "Content-Type": "application/json",
+  };
+
+  const token = getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${api.defaults.baseURL}/conversations`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+    credentials: "include",
+    signal: controller.signal,
+  });
+
+  if (res.status === 401 && allowRefreshRetry) {
+    await syncSessionAfterRefresh();
+    return openStreamResponse(payload, controller, false);
+  }
+
+  if (!res.ok) {
+    throw new Error(await parseFailedStreamResponse(res));
+  }
+
+  if (!res.body) {
+    throw new Error("Response body is empty");
+  }
+
+  return res;
+}
+
 export function sendMessageStream(
   payload,
   { onStarted, onRetrieved, onChunk, onDone, onError, onAbort } = {},
@@ -266,28 +344,7 @@ export function sendMessageStream(
 
   (async () => {
     try {
-      const headers = {
-        Accept: "text/event-stream",
-        "Content-Type": "application/json",
-      };
-
-      const token = getAccessToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const res = await fetch(`${api.defaults.baseURL}/conversations`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `HTTP ${res.status}`);
-      }
-      if (!res.body) {
-        throw new Error("Response body is empty");
-      }
+      const res = await openStreamResponse(payload, controller);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
