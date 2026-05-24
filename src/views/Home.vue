@@ -1,8 +1,7 @@
 <template>
-  <!-- 主容器：collapsed 控制侧边栏收起动画 -->
-  <div class="oragen-container" :class="{ collapsed }">
+  <div class="oragen-container">
     <!-- 侧边栏过渡动画 -->
-    <transition name="sidebar">
+    <transition name="sidebar" appear>
       <Sidebar
         v-if="sidebarOpen"
         :sidebarOpen="sidebarOpen"
@@ -15,6 +14,17 @@
         :setCurrentConvId="setCurrentConversation"
         :formatTime="formatTime"
       />
+    </transition>
+    <transition name="home-toast">
+      <div
+        v-if="homeToast.visible"
+        class="home-toast"
+        :class="`is-${homeToast.type}`"
+        aria-live="polite"
+      >
+        <span class="home-toast-dot" aria-hidden="true"></span>
+        <span class="home-toast-text">{{ homeToast.message }}</span>
+      </div>
     </transition>
 
     <!-- 聊天主内容区 -->
@@ -108,12 +118,19 @@
               <el-option label="Kimi-K2.5" value="kimi-k2.5" />
             </el-select>
 
-            <el-switch
-              v-model="useNetwork"
-              :active-text="locale === 'zh' ? '\u8054\u7f51' : 'Web'"
-              :inactive-text="locale === 'zh' ? '\u672c\u5730' : 'Local'"
-              size="small"
-            />
+            <div class="network-toggle" :class="{ 'is-network': useNetwork }">
+              <span class="toggle-label toggle-label-local">
+                {{ locale === "zh" ? "本地" : "Local" }}
+              </span>
+              <el-switch
+                v-model="useNetwork"
+                size="small"
+                class="network-switch-control"
+              />
+              <span class="toggle-label toggle-label-web">
+                {{ locale === "zh" ? "联网" : "Web" }}
+              </span>
+            </div>
           </div>
 
           <!-- 输入框主体 -->
@@ -173,6 +190,7 @@ import {
   normalizeConversationsResponse,
   normalizeMessagesResponse,
 } from "@/utils/chat"; // 聊天工具函数
+import { consumePendingFlashMessage } from "@/utils/flashMessage";
 import { locale, t } from "@/i18n"; // 国际化
 
 // 初始化 markdown 解析器
@@ -188,7 +206,6 @@ const isStreaming = ref(false); // 是否正在流式输出
 const useNetwork = ref(false); // 是否联网搜索
 const modelName = ref("qwen-plus"); // 当前选择的模型
 const sidebarOpen = ref(true); // 侧边栏是否打开
-const collapsed = ref(false); // 侧边栏是否收起（动画用）
 const textareaRef = ref(null); // 输入框 DOM 引用
 const messagesEndRef = ref(null); // 消息滚动到底部锚点
 const currentConvId = ref(null); // 当前对话 ID
@@ -198,6 +215,13 @@ const conversations = ref([]); // 对话列表
 const messagesByConversation = ref({}); // 按对话 ID 存储消息
 
 // 计算属性：获取当前对话的消息列表
+const homeToast = ref({
+  visible: false,
+  type: "success",
+  message: "",
+});
+let homeToastTimer = null;
+
 const currentMessages = computed(() =>
   getConversationMessages(currentConvId.value),
 );
@@ -235,14 +259,28 @@ function setSidebarOpen(value) {
 
 // 切换侧边栏展开/收起
 function toggle() {
-  collapsed.value = !collapsed.value;
-  if (collapsed.value) {
-    setTimeout(() => {
-      sidebarOpen.value = false;
-    }, 300);
-  } else {
-    sidebarOpen.value = true;
+  sidebarOpen.value = !sidebarOpen.value;
+}
+
+function showPendingFlashMessage() {
+  const flashMessage = consumePendingFlashMessage();
+  if (!flashMessage?.message) return;
+
+  if (homeToastTimer) {
+    clearTimeout(homeToastTimer);
+    homeToastTimer = null;
   }
+
+  homeToast.value = {
+    visible: true,
+    type: flashMessage.type || "success",
+    message: flashMessage.message,
+  };
+
+  homeToastTimer = window.setTimeout(() => {
+    homeToast.value.visible = false;
+    homeToastTimer = null;
+  }, 2200);
 }
 
 // 加载指定对话的消息
@@ -625,6 +663,7 @@ watch(input, () => {
 
 // 页面挂载：初始化对话列表
 onMounted(() => {
+  showPendingFlashMessage();
   initConversations().catch((error) => {
     console.error("initConversations error:", error);
     createNewConversation();
@@ -633,6 +672,10 @@ onMounted(() => {
 
 // 页面卸载：终止流式请求
 onUnmounted(() => {
+  if (homeToastTimer) {
+    clearTimeout(homeToastTimer);
+    homeToastTimer = null;
+  }
   abortCurrentStream();
 });
 </script>
@@ -659,6 +702,71 @@ body {
   background: #fffbf5;
   color: #2d2d2d;
   overflow: hidden;
+}
+
+:deep(.sidebar-enter-active),
+:deep(.sidebar-leave-active) {
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease,
+    filter 0.22s ease;
+}
+
+:deep(.sidebar-enter-from),
+:deep(.sidebar-leave-to) {
+  opacity: 0;
+  transform: translateX(-24px) scale(0.98);
+  filter: blur(6px);
+}
+
+.home-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  z-index: 3700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border-radius: 16px;
+  color: #7a4a16;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 170, 92, 0.24);
+  box-shadow:
+    0 16px 32px rgba(234, 122, 20, 0.18),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+}
+
+.home-toast-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffb14a 0%, #ff8c00 100%);
+  box-shadow: 0 0 0 6px rgba(255, 177, 74, 0.14);
+}
+
+.home-toast-text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.home-toast-enter-active,
+.home-toast-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.home-toast-enter-from,
+.home-toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -10px);
 }
 
 .chat-main {
@@ -899,9 +1007,8 @@ body {
 }
 
 .input-container {
-  padding: 16px 20px;
+  padding: 10px 20px;
   border-top: 1px solid rgba(255, 140, 0, 0.1);
-  background: #fafafa;
 }
 
 .input-wrapper {
@@ -930,7 +1037,94 @@ body {
 }
 
 .model-select {
-  width: 140px;
+  width: 168px;
+}
+
+.model-select:deep(.el-select__wrapper),
+.model-select:deep(.el-input__wrapper) {
+  min-height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffdf9 0%, #fff7ef 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 181, 77, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.model-select:deep(.el-select__wrapper:hover),
+.model-select:deep(.el-input__wrapper:hover) {
+  box-shadow:
+    0 0 0 1px rgba(255, 166, 77, 0.56),
+    0 8px 20px rgba(255, 140, 0, 0.08);
+}
+
+.model-select:deep(.el-select__wrapper.is-focused),
+.model-select:deep(.el-input__wrapper.is-focus) {
+  box-shadow:
+    0 0 0 2px rgba(255, 166, 77, 0.28),
+    0 10px 22px rgba(255, 140, 0, 0.1);
+}
+
+.model-select:deep(.el-select__selected-item),
+.model-select:deep(.el-input__inner) {
+  color: #8a4d16;
+  font-weight: 600;
+}
+
+.model-select:deep(.el-select__caret),
+.model-select:deep(.el-input__suffix-inner) {
+  color: #d78322;
+}
+
+.network-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fffdfa 0%, #fff5e8 100%);
+  border: 1px solid rgba(255, 184, 77, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 8px 18px rgba(255, 140, 0, 0.06);
+}
+
+.toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.toggle-label-local {
+  color: #ff8c00;
+}
+
+.toggle-label-web {
+  color: #9c8a77;
+}
+
+.network-toggle.is-network .toggle-label-local {
+  color: #b8a797;
+}
+
+.network-toggle.is-network .toggle-label-web {
+  color: #ff8c00;
+}
+
+.network-switch-control {
+  --el-switch-on-color: #ff9b2f;
+  --el-switch-off-color: #e7dccd;
+}
+
+.network-switch-control:deep(.el-switch__core) {
+  min-width: 42px;
+  border: 1px solid rgba(255, 184, 77, 0.35);
+  box-shadow: inset 0 1px 2px rgba(151, 97, 29, 0.08);
+}
+
+.network-switch-control:deep(.el-switch__action) {
+  box-shadow: 0 2px 6px rgba(140, 81, 18, 0.16);
 }
 
 .input-main {
@@ -1031,6 +1225,11 @@ body {
   }
 
   .model-select {
+    width: 100%;
+  }
+
+  .network-toggle {
+    justify-content: center;
     width: 100%;
   }
 }

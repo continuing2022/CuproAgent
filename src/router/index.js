@@ -1,5 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { hasAccessToken } from "@/utils/authStorage";
+import { getCurrentUser, restoreSession } from "@/api";
+import { clearAuthSession, hasAccessToken } from "@/utils/authStorage";
+import {
+  finishRouteLoading,
+  startRouteLoading,
+} from "@/utils/routeLoading";
 
 const routes = [
   {
@@ -16,6 +21,9 @@ const routes = [
     path: "/usermanagement",
     name: "Usermanagement",
     component: () => import("../views/Usermanagement.vue"),
+    meta: {
+      requiresAdmin: true,
+    },
   },
 ];
 
@@ -24,16 +32,52 @@ const router = createRouter({
   routes,
 });
 
-// 全局路由守卫：无 token 跳转到 Login，有 token 访问 Login 则重定向到 Home
-router.beforeEach((to, from, next) => {
-  const authenticated = hasAccessToken();
+let activeRouteLoadingId = null;
+
+router.beforeEach(async (to) => {
+  if (activeRouteLoadingId) {
+    finishRouteLoading(activeRouteLoadingId);
+  }
+  activeRouteLoadingId = startRouteLoading();
+
+  let authenticated = hasAccessToken();
+  if (!authenticated) {
+    authenticated = await restoreSession();
+  }
+
   if (!authenticated && to.name !== "Login") {
-    return next({ name: "Login" });
+    return { name: "Login" };
   }
+
   if (authenticated && to.name === "Login") {
-    return next({ name: "Home" });
+    return { name: "Home" };
   }
-  next();
+
+  if (authenticated && to.meta?.requiresAdmin) {
+    try {
+      const user = await getCurrentUser();
+      if (user?.role !== "admin") {
+        return { name: "Home" };
+      }
+    } catch (error) {
+      clearAuthSession();
+      return { name: "Login" };
+    }
+  }
+
+  return true;
+});
+
+router.afterEach(() => {
+  if (!activeRouteLoadingId) return;
+  finishRouteLoading(activeRouteLoadingId);
+  activeRouteLoadingId = null;
+});
+
+router.onError(() => {
+  if (!activeRouteLoadingId) return;
+  finishRouteLoading(activeRouteLoadingId);
+  activeRouteLoadingId = null;
 });
 
 export default router;

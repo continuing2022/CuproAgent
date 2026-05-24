@@ -9,7 +9,10 @@
         </div>
       </button>
 
-      <transition enter-active-class="animate-in" leave-active-class="animate-out">
+      <transition
+        enter-active-class="animate-in"
+        leave-active-class="animate-out"
+      >
         <div v-if="isOpen" class="dropdown-wrapper">
           <div class="dropdown-mask" @click="isOpen = false" />
 
@@ -18,7 +21,9 @@
               <div class="avatar-lg">{{ userProfile }}</div>
               <div class="user-info-lg">
                 <div class="username-lg" :title="username">{{ username }}</div>
-                <div class="userEmail-lg" :title="userEmail">{{ userEmail }}</div>
+                <div class="userEmail-lg" :title="userEmail">
+                  {{ userEmail }}
+                </div>
               </div>
             </div>
 
@@ -40,7 +45,11 @@
                 <span class="menu-text">{{ t("personal_info") }}</span>
               </button>
 
-              <button class="menu-item menu-item-border" @click="onUserManage">
+              <button
+                v-if="canManageUsers"
+                class="menu-item menu-item-border"
+                @click="onUserManage"
+              >
                 <HelpCircle class="menu-icon" />
                 <span class="menu-text">{{ t("backend_manage") }}</span>
                 <span class="menu-arrow">&#8250;</span>
@@ -48,7 +57,9 @@
 
               <button class="menu-item logout-item" @click="handleLogout">
                 <LogOut class="menu-icon menu-icon-logout" />
-                <span class="menu-text menu-text-logout">{{ t("logout") }}</span>
+                <span class="menu-text menu-text-logout">{{
+                  t("logout")
+                }}</span>
               </button>
             </div>
           </div>
@@ -61,16 +72,17 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { User, Settings, HelpCircle, LogOut } from "lucide-vue-next";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
 import router from "@/router";
 import UserDetailDialog from "@/components/UserDetailDialog.vue";
-import { userLogout } from "@/api";
+import { getCurrentUser, userLogout } from "@/api";
 import { t, locale, setLocale } from "@/i18n";
 
 const isOpen = ref(false);
 const showUserDetail = ref(false);
+const currentUser = ref(null);
 
 const isEnglish = computed({
   get: () => locale.value === "en",
@@ -80,12 +92,25 @@ const isEnglish = computed({
   },
 });
 
-const username = ref(localStorage.getItem("username") || t("default_user"));
-const userEmail = ref(localStorage.getItem("email") || "user@example.com");
-const userProfile = computed(() => username.value.charAt(0).toUpperCase());
-const userTier = computed(() =>
-  localStorage.getItem("role") === "admin" ? t("admin") : t("normal_user"),
+const username = computed(
+  () => currentUser.value?.username || t("default_user"),
 );
+const userEmail = computed(
+  () => currentUser.value?.email || "user@example.com",
+);
+const userProfile = computed(() => username.value.charAt(0).toUpperCase());
+const canManageUsers = computed(() => currentUser.value?.role === "admin");
+const userTier = computed(() =>
+  canManageUsers.value ? t("admin") : t("normal_user"),
+);
+
+async function loadCurrentUser() {
+  try {
+    currentUser.value = await getCurrentUser();
+  } catch (error) {
+    currentUser.value = null;
+  }
+}
 
 const handleLogout = async () => {
   try {
@@ -105,18 +130,17 @@ const onUserManage = async () => {
     await ElMessageBox.confirm(t("enter_admin"), t("warning"), {
       confirmButtonText: t("ok"),
       cancelButtonText: t("cancel"),
-      type: "info",
+      type: "warning",
       customClass: "logout-confirm-box",
     });
-
-    const role = localStorage.getItem("role");
-    if (role === "admin") {
-      router.push({ name: "Usermanagement" });
-    } else {
-      ElMessage.error(t("no_permission"));
-    }
+    isOpen.value = false;
+    await router.push({ name: "Usermanagement" });
   } catch (_) {}
 };
+
+onMounted(() => {
+  loadCurrentUser();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -209,7 +233,7 @@ const onUserManage = async () => {
 .dropdown-content {
   position: relative;
   width: 100%;
-  min-width: 260px;
+  min-width: 200px;
   background: linear-gradient(135deg, #fff 0%, #fff8f3 100%);
   border-radius: 0.75rem;
   box-shadow:

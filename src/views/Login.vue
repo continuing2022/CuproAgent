@@ -183,6 +183,7 @@ import { userLogin, userRegister } from "@/api";
 import { t } from "@/i18n";
 import router from "@/router";
 import { setAuthSession } from "@/utils/authStorage";
+import { setPendingFlashMessage } from "@/utils/flashMessage";
 import {
   isValidEmail,
   isValidPassword,
@@ -228,6 +229,25 @@ const authMessageKeyMap = {
   "email already in use": ["auth_email_registered", "该邮箱已被注册"],
   "validation failed": ["auth_validation_failed", "请先修正表单中的错误"],
 };
+
+Object.assign(authMessageKeyMap, {
+  "username required": ["err_enter_username", "请输入用户名"],
+  "username must be 2-20 characters": [
+    "username_length_2_20",
+    "用户名长度需为 2 到 20 个字符",
+  ],
+  "email required": ["err_enter_email", "请输入邮箱"],
+  "invalid email format": ["err_invalid_email", "请输入正确的邮箱格式"],
+  "password required": ["err_enter_password", "请输入密码"],
+  "password must be at least 6 characters": [
+    "password_min_6",
+    "密码长度不能少于 6 个字符",
+  ],
+  "invalid credentials": ["auth_invalid_credentials", "邮箱或密码错误"],
+  "email already registered": ["auth_email_registered", "该邮箱已被注册"],
+  "email already in use": ["auth_email_registered", "该邮箱已被注册"],
+  "validation failed": ["auth_validation_failed", "请先修正表单中的错误"],
+});
 
 function mapAuthMessage(message) {
   if (!message) return t("request_error_retry");
@@ -368,17 +388,18 @@ async function handleSubmit() {
       const res = await userLogin({
         email: formData.email,
         password: formData.password,
+        rememberMe: rememberMe.value,
       });
 
       setAuthSession({
         accessToken: res.token?.accessToken,
-        refreshToken: res.token?.refreshToken,
-        user: res.user,
-        persist: rememberMe.value,
       });
 
-      ElMessage.success(t("login_success"));
-      router.push({ name: "Home" });
+      setPendingFlashMessage({
+        type: "success",
+        message: t("login_success"),
+      });
+      await router.push({ name: "Home" });
       return;
     }
 
