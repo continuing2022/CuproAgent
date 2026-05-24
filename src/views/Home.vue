@@ -42,9 +42,13 @@
       </header>
 
       <!-- 消息展示容器 -->
-      <div class="messages-container">
+      <div
+        ref="messagesContainerRef"
+        class="messages-container"
+        @scroll="handleMessagesScroll"
+      >
         <!-- 无消息时显示欢迎页 + 快捷指令 -->
-        <div v-if="currentMessages.length === 0" class="welcome-screen">
+        <div v-if="showWelcomeScreen" class="welcome-screen">
           <div class="welcome-logo">CU</div>
           <h2>{{ t("welcome_title") }}</h2>
           <p>{{ t("welcome_desc") }}</p>
@@ -71,6 +75,12 @@
         <!-- 有消息时显示消息列表 -->
         <div v-else class="messages-list">
           <div
+            v-if="currentMessageState.isLoadingHistory"
+            class="history-status"
+          >
+            {{ locale === "zh" ? "正在加载更早消息..." : "Loading older messages..." }}
+          </div>
+          <div
             v-for="msg in currentMessages"
             :key="msg.id || msg.message_id || msg._tempId"
             class="message"
@@ -92,7 +102,7 @@
                 </div>
               </template>
               <!-- 渲染 markdown 消息 -->
-              <div v-else v-html="renderContent(msg.content)"></div>
+              <div v-else v-html="msg.renderedHtml"></div>
             </div>
           </div>
           <!-- 消息滚动到底部的锚点 -->
@@ -172,8 +182,8 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import MarkdownIt from "markdown-it"; // markdown 解析
-import DOMPurify from "dompurify"; // XSS 安全过滤
+import MarkdownIt from "markdown-it";
+import DOMPurify from "dompurify";
 import Sidebar from "../components/Sidebar.vue";
 import { IconMenu, IconSend, IconStop } from "../components/icons";
 import {
@@ -182,39 +192,41 @@ import {
   getMessages,
   sendMessageStream,
   updateConversation as updateConversationApi,
-} from "@/api"; // 接口请求
+} from "@/api";
 import {
   appendOrUpdateStreamingMessage,
   createLocalConversation,
   ensureActiveConversation,
   normalizeConversationsResponse,
   normalizeMessagesResponse,
-} from "@/utils/chat"; // 聊天工具函数
+} from "@/utils/chat";
 import { consumePendingFlashMessage } from "@/utils/flashMessage";
-import { locale, t } from "@/i18n"; // 国际化
+import { locale, t } from "@/i18n";
 
-// 初始化 markdown 解析器
+const MESSAGE_PAGE_SIZE = 10;
+const HISTORY_LOAD_THRESHOLD = 80;
+const LOCAL_CONVERSATION_KEY = "__local__";
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
 });
 
-// ======== 响应式变量 ========
-const input = ref(""); // 输入框内容
-const isStreaming = ref(false); // 是否正在流式输出
-const useNetwork = ref(false); // 是否联网搜索
-const modelName = ref("qwen-plus"); // 当前选择的模型
-const sidebarOpen = ref(true); // 侧边栏是否打开
-const textareaRef = ref(null); // 输入框 DOM 引用
-const messagesEndRef = ref(null); // 消息滚动到底部锚点
-const currentConvId = ref(null); // 当前对话 ID
-const currentStream = ref(null); // 当前流式请求实例
-const streamingMessageTempId = ref(null); // 流式消息临时 ID
-const conversations = ref([]); // 对话列表
-const messagesByConversation = ref({}); // 按对话 ID 存储消息
+const input = ref("");
+const isStreaming = ref(false);
+const useNetwork = ref(false);
+const modelName = ref("qwen-plus");
+const sidebarOpen = ref(true);
+const textareaRef = ref(null);
+const messagesContainerRef = ref(null);
+const messagesEndRef = ref(null);
+const currentConvId = ref(null);
+const currentStream = ref(null);
+const streamingMessageTempId = ref(null);
+const conversations = ref([]);
+const messagesByConversation = ref({});
 
-// 计算属性：获取当前对话的消息列表
 const homeToast = ref({
   visible: false,
   type: "success",
@@ -222,28 +234,83 @@ const homeToast = ref({
 });
 let homeToastTimer = null;
 
-const currentMessages = computed(() =>
-  getConversationMessages(currentConvId.value),
+const currentMessageState = computed(() =>
+  getConversationMessageState(currentConvId.value),
 );
+const currentMessages = computed(() => currentMessageState.value.items);
+const showWelcomeScreen = computed(() => {
+  const activeConversation = ensureActiveConversation(
+    conversations.value,
+    currentConvId.value,
+  );
 
-// 获取指定对话的消息
+  if (activeConversation?._local || !currentConvId.value) {
+    return currentMessages.value.length === 0;
+  }
+
+  return (
+    currentMessageState.value.isLoaded && currentMessages.value.length === 0
+  );
+});
+
+function createConversationMessageState(overrides = {}) {
+  return {
+    items: [],
+    hasMore: false,
+    oldestLoadedMessageId: null,
+    isLoadingHistory: false,
+    isLoaded: false,
+    scrollTop: null,
+    ...overrides,
+  };
+}
+
+function getConversationStateKey(conversationId) {
+  return conversationId ?? LOCAL_CONVERSATION_KEY;
+}
+
+function ensureConversationMessageState(conversationId) {
+  const stateKey = getConversationStateKey(conversationId);
+  const existingState = messagesByConversation.value[stateKey];
+  if (existingState && Array.isArray(existingState.items)) {
+    return existingState;
+  }
+
+  const nextState = createConversationMessageState();
+  messagesByConversation.value[stateKey] = nextState;
+  return nextState;
+}
+
+function getConversationMessageState(conversationId) {
+  return ensureConversationMessageState(conversationId);
+}
+
+function setConversationMessageState(conversationId, updater) {
+  const stateKey = getConversationStateKey(conversationId);
+  const currentState = ensureConversationMessageState(conversationId);
+  const nextPatch =
+    typeof updater === "function" ? updater(currentState) : updater;
+  const nextState = {
+    ...currentState,
+    ...(nextPatch || {}),
+  };
+
+  if (!Array.isArray(nextState.items)) {
+    nextState.items = currentState.items || [];
+  }
+
+  messagesByConversation.value[stateKey] = nextState;
+  return nextState;
+}
+
 function getConversationMessages(conversationId) {
-  return messagesByConversation.value[conversationId] || [];
+  return getConversationMessageState(conversationId).items;
 }
 
-// 设置指定对话的消息
 function setConversationMessages(conversationId, messages) {
-  messagesByConversation.value[conversationId] = messages;
+  return setConversationMessageState(conversationId, { items: messages });
 }
 
-// 重置流式输出状态
-function resetStreamingState() {
-  isStreaming.value = false;
-  streamingMessageTempId.value = null;
-  currentStream.value = null;
-}
-
-// 渲染消息内容：markdown + 安全过滤
 function renderContent(text) {
   try {
     return DOMPurify.sanitize(md.render(text || ""));
@@ -252,14 +319,114 @@ function renderContent(text) {
   }
 }
 
-// 设置侧边栏开关
+function withRenderedContent(message) {
+  const content = typeof message?.content === "string" ? message.content : "";
+  return {
+    ...message,
+    content,
+    renderedHtml: renderContent(content),
+  };
+}
+
+function normalizeRenderedMessages(response) {
+  return normalizeMessagesResponse(response).map(withRenderedContent);
+}
+
+function getMessageIdentity(message, fallbackIndex) {
+  return (
+    message?.message_id ??
+    message?.id ??
+    message?._tempId ??
+    `${message?.role || "message"}-${fallbackIndex}`
+  );
+}
+
+function mergeMessages(prependedMessages, currentMessagesList) {
+  const seen = new Set();
+  return [...prependedMessages, ...currentMessagesList].filter(
+    (message, index) => {
+      const key = getMessageIdentity(message, index);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    },
+  );
+}
+
+function updateMessageByTempId(conversationId, tempId, updater) {
+  setConversationMessageState(conversationId, (state) => ({
+    items: state.items.map((message) => {
+      if (message._tempId !== tempId) return message;
+      return withRenderedContent({
+        ...message,
+        ...(updater(message) || {}),
+      });
+    }),
+  }));
+}
+
+function moveConversationMessageState(sourceConversationId, targetConversationId) {
+  if (!targetConversationId) {
+    return;
+  }
+
+  const sourceStateKey = getConversationStateKey(sourceConversationId);
+  const targetStateKey = getConversationStateKey(targetConversationId);
+  if (sourceStateKey === targetStateKey) return;
+
+  const sourceState = messagesByConversation.value[sourceStateKey];
+  if (!sourceState) return;
+
+  messagesByConversation.value[targetStateKey] = {
+    ...sourceState,
+  };
+  delete messagesByConversation.value[sourceStateKey];
+}
+
+function resetStreamingState() {
+  isStreaming.value = false;
+  streamingMessageTempId.value = null;
+  currentStream.value = null;
+}
+
 function setSidebarOpen(value) {
   sidebarOpen.value = value;
 }
 
-// 切换侧边栏展开/收起
 function toggle() {
   sidebarOpen.value = !sidebarOpen.value;
+}
+
+function persistConversationScroll(conversationId = currentConvId.value) {
+  if (!messagesContainerRef.value) return;
+
+  setConversationMessageState(conversationId, {
+    scrollTop: messagesContainerRef.value.scrollTop,
+  });
+}
+
+async function scrollToBottom(behavior = "auto") {
+  await nextTick();
+  messagesEndRef.value?.scrollIntoView({ behavior, block: "end" });
+  persistConversationScroll();
+}
+
+async function restoreConversationScroll(conversationId) {
+  await nextTick();
+
+  if (!messagesContainerRef.value || currentConvId.value !== conversationId) {
+    return;
+  }
+
+  const state = getConversationMessageState(conversationId);
+  if (Number.isFinite(state.scrollTop)) {
+    messagesContainerRef.value.scrollTop = state.scrollTop;
+  } else {
+    messagesContainerRef.value.scrollTop =
+      messagesContainerRef.value.scrollHeight;
+  }
+
+  persistConversationScroll(conversationId);
 }
 
 function showPendingFlashMessage() {
@@ -283,56 +450,154 @@ function showPendingFlashMessage() {
   }, 2200);
 }
 
-// 加载指定对话的消息
-async function loadConversationMessages(conversationId) {
-  if (!conversationId) return;
+async function loadConversationMessages(conversationId, options = {}) {
+  if (!conversationId) return createConversationMessageState();
 
-  const response = await getMessages(conversationId);
-  setConversationMessages(conversationId, normalizeMessagesResponse(response));
+  const { beforeMessageId = null, force = false } = options;
+  const currentState = ensureConversationMessageState(conversationId);
+  const isHistoryLoad = Boolean(beforeMessageId);
+
+  if (!isHistoryLoad && currentState.isLoaded && !force) {
+    return currentState;
+  }
+
+  if (isHistoryLoad) {
+    if (
+      currentState.isLoadingHistory ||
+      !currentState.hasMore ||
+      !currentState.oldestLoadedMessageId
+    ) {
+      return currentState;
+    }
+
+    setConversationMessageState(conversationId, {
+      isLoadingHistory: true,
+    });
+  }
+
+  try {
+    const response = await getMessages(conversationId, {
+      limit: MESSAGE_PAGE_SIZE,
+      ...(beforeMessageId ? { beforeMessageId } : {}),
+    });
+    const normalizedMessages = normalizeRenderedMessages(response);
+
+    if (isHistoryLoad) {
+      setConversationMessageState(conversationId, (state) => ({
+        items: mergeMessages(normalizedMessages, state.items),
+        hasMore: Boolean(response?.hasMore),
+        oldestLoadedMessageId:
+          response?.oldestLoadedMessageId ??
+          normalizedMessages[0]?.message_id ??
+          state.oldestLoadedMessageId,
+        isLoadingHistory: false,
+        isLoaded: true,
+      }));
+    } else {
+      setConversationMessageState(conversationId, (state) => ({
+        items: normalizedMessages,
+        hasMore: Boolean(response?.hasMore),
+        oldestLoadedMessageId:
+          response?.oldestLoadedMessageId ??
+          normalizedMessages[0]?.message_id ??
+          null,
+        isLoadingHistory: false,
+        isLoaded: true,
+        scrollTop: state.scrollTop,
+      }));
+    }
+
+    return getConversationMessageState(conversationId);
+  } catch (error) {
+    setConversationMessageState(conversationId, {
+      isLoadingHistory: false,
+    });
+    throw error;
+  }
 }
 
-// 切换当前选中的对话
-async function setCurrentConversation(conversationId) {
+async function loadOlderMessages(conversationId) {
+  if (!conversationId || currentConvId.value !== conversationId) return;
+
+  const state = getConversationMessageState(conversationId);
+  if (
+    !state.hasMore ||
+    state.isLoadingHistory ||
+    !state.oldestLoadedMessageId
+  ) {
+    return;
+  }
+
+  const previousScrollHeight = messagesContainerRef.value?.scrollHeight || 0;
+  const previousScrollTop = messagesContainerRef.value?.scrollTop || 0;
+
+  await loadConversationMessages(conversationId, {
+    beforeMessageId: state.oldestLoadedMessageId,
+  });
+  await nextTick();
+
+  if (!messagesContainerRef.value || currentConvId.value !== conversationId) {
+    return;
+  }
+
+  const scrollDelta =
+    messagesContainerRef.value.scrollHeight - previousScrollHeight;
+  messagesContainerRef.value.scrollTop = previousScrollTop + scrollDelta;
+  persistConversationScroll(conversationId);
+}
+
+function handleMessagesScroll() {
+  persistConversationScroll();
+
+  if (!messagesContainerRef.value || !currentConvId.value) return;
+  if (messagesContainerRef.value.scrollTop > HISTORY_LOAD_THRESHOLD) return;
+
+  loadOlderMessages(currentConvId.value).catch((error) => {
+    console.error("loadOlderMessages error:", error);
+  });
+}
+
+async function setCurrentConversation(conversationId, options = {}) {
   if (isStreaming.value) return;
 
+  const { force = true } = options;
   currentConvId.value = conversationId;
-  if (conversationId === undefined) return;
-
   const activeConversation = ensureActiveConversation(
     conversations.value,
     conversationId,
   );
-  if (activeConversation?._local) return;
+  if (conversationId === undefined && !activeConversation?._local) return;
 
-  await loadConversationMessages(conversationId);
+  ensureConversationMessageState(conversationId);
+
+  if (!activeConversation?._local) {
+    await loadConversationMessages(conversationId, { force });
+  }
+
+  await restoreConversationScroll(conversationId);
 }
 
-// 对话列表按时间倒序排序
 function sortConversationsByTimestamp() {
   conversations.value = [...conversations.value].sort(
     (left, right) => (right.timestamp || 0) - (left.timestamp || 0),
   );
 }
 
-// 创建新对话（本地临时对话）
 function createNewConversation() {
   const existingLocal = conversations.value.find((item) => item._local);
   if (existingLocal) {
     currentConvId.value = existingLocal.id;
-    setConversationMessages(
-      existingLocal.id,
-      getConversationMessages(existingLocal.id),
-    );
+    ensureConversationMessageState(existingLocal.id);
+    void restoreConversationScroll(existingLocal.id);
     return;
   }
 
   const localConversation = createLocalConversation(t("new_chat"));
   conversations.value = [localConversation, ...conversations.value];
   currentConvId.value = localConversation.id;
-  setConversationMessages(localConversation.id, []);
+  ensureConversationMessageState(localConversation.id);
 }
 
-// 初始化对话列表
 async function initConversations() {
   const response = await getConversations();
   const normalized = normalizeConversationsResponse(response, t("new_chat"));
@@ -343,11 +608,9 @@ async function initConversations() {
     return;
   }
 
-  currentConvId.value = normalized[0].id;
-  await loadConversationMessages(normalized[0].id);
+  await setCurrentConversation(normalized[0].id);
 }
 
-// 发送第一条消息后，本地临时对话转为真实对话
 function updateConversationAfterStart(
   sourceConversationId,
   newConversationId,
@@ -363,11 +626,7 @@ function updateConversationAfterStart(
   localConversation.timestamp = Date.now();
   delete localConversation._local;
 
-  const sourceMessages = getConversationMessages(sourceConversationId);
-  setConversationMessages(newConversationId, sourceMessages);
-  if (sourceConversationId !== newConversationId) {
-    delete messagesByConversation.value[sourceConversationId];
-  }
+  moveConversationMessageState(sourceConversationId, newConversationId);
 
   if (currentConvId.value === sourceConversationId) {
     currentConvId.value = newConversationId;
@@ -377,41 +636,33 @@ function updateConversationAfterStart(
   return newConversationId;
 }
 
-// 更新流式输出的消息片段
 function updateAssistantPlaceholder(conversationId, tempId, chunk) {
-  setConversationMessages(
-    conversationId,
-    appendOrUpdateStreamingMessage(
-      getConversationMessages(conversationId),
+  setConversationMessageState(conversationId, (state) => ({
+    items: appendOrUpdateStreamingMessage(
+      state.items,
       tempId,
       chunk,
       { isThinking: false, status: "streaming" },
+    ).map((message) =>
+      message._tempId === tempId ? withRenderedContent(message) : message,
     ),
-  );
+  }));
+
+  if (currentConvId.value === conversationId) {
+    void scrollToBottom("auto");
+  }
 }
 
-// 更新 AI 消息状态
 function updateAssistantMessage(conversationId, tempId, updater) {
-  setConversationMessages(
-    conversationId,
-    getConversationMessages(conversationId).map((message) => {
-      if (message._tempId !== tempId) return message;
-      return { ...message, ...updater(message) };
-    }),
-  );
+  updateMessageByTempId(conversationId, tempId, updater);
 }
 
-// 移除无效的 AI 消息
 function removeAssistantMessage(conversationId, tempId) {
-  setConversationMessages(
-    conversationId,
-    getConversationMessages(conversationId).filter(
-      (message) => message._tempId !== tempId,
-    ),
-  );
+  setConversationMessageState(conversationId, (state) => ({
+    items: state.items.filter((message) => message._tempId !== tempId),
+  }));
 }
 
-// 结束流式输出，完成消息状态
 function finalizeAssistantMessage(conversationId, tempId, status) {
   const currentMessage = getConversationMessages(conversationId).find(
     (message) => message._tempId === tempId,
@@ -427,7 +678,6 @@ function finalizeAssistantMessage(conversationId, tempId, status) {
   }
 }
 
-// 发送消息（核心函数）
 async function handleSend() {
   if (!input.value.trim() || isStreaming.value) return;
 
@@ -435,39 +685,35 @@ async function handleSend() {
   input.value = "";
   isStreaming.value = true;
 
-  // 临时用户消息
-  const tempUserMessage = {
+  const tempUserMessage = withRenderedContent({
     role: "user",
     content,
     _tempId: `user-${Date.now()}`,
-  };
-  // 临时 AI 消息（占位）
+  });
   const tempAssistantId = `assistant-${Date.now()}`;
-  const tempAssistantMessage = {
+  const tempAssistantMessage = withRenderedContent({
     role: "assistant",
     content: "",
     _tempId: tempAssistantId,
     isThinking: true,
     status: "waiting",
-  };
+  });
 
   let streamConversationId = currentConvId.value;
-  const currentList = getConversationMessages(streamConversationId);
-  setConversationMessages(streamConversationId, [
-    ...currentList,
-    tempUserMessage,
-    tempAssistantMessage,
-  ]);
+  ensureConversationMessageState(streamConversationId);
+  setConversationMessageState(streamConversationId, (state) => ({
+    items: [...state.items, tempUserMessage, tempAssistantMessage],
+    isLoaded: true,
+  }));
 
   streamingMessageTempId.value = tempAssistantId;
+  void scrollToBottom("smooth");
 
-  // 确保当前对话存在
   const activeConversation = ensureActiveConversation(
     conversations.value,
     streamConversationId,
   );
 
-  // 请求参数
   const payload = {
     content,
     model: modelName.value,
@@ -486,12 +732,10 @@ async function handleSend() {
         : content.slice(0, 15) || t("new_chat");
   }
 
-  // 联网搜索开关
   if (useNetwork.value) {
     payload.networkConfig = { search: true };
   }
 
-  // 发起流式请求
   currentStream.value = sendMessageStream(payload, {
     onStarted(event) {
       streamConversationId = updateConversationAfterStart(
@@ -509,22 +753,13 @@ async function handleSend() {
     },
     onDone(event) {
       const doneConversationId = event.conversation_id || streamConversationId;
-      setConversationMessages(
-        doneConversationId,
-        getConversationMessages(doneConversationId).map((message) =>
-          message._tempId === tempAssistantId
-            ? {
-                ...message,
-                id: event.message_id,
-                message_id: event.message_id,
-                isThinking: false,
-                status: "done",
-              }
-            : message,
-        ),
-      );
+      updateAssistantMessage(doneConversationId, tempAssistantId, () => ({
+        id: event.message_id,
+        message_id: event.message_id,
+        isThinking: false,
+        status: "done",
+      }));
 
-      // 更新对话时间和标题
       const currentConversation = ensureActiveConversation(
         conversations.value,
         doneConversationId,
@@ -538,10 +773,10 @@ async function handleSend() {
           currentConversation.title = content.slice(0, 15);
         }
       }
+      persistConversationScroll(doneConversationId);
       sortConversationsByTimestamp();
       resetStreamingState();
     },
-    // 主动停止输出
     onAbort() {
       finalizeAssistantMessage(
         streamConversationId,
@@ -550,7 +785,6 @@ async function handleSend() {
       );
       resetStreamingState();
     },
-    // 输出出错
     onError(error) {
       console.error("sendMessageStream error:", error);
       finalizeAssistantMessage(streamConversationId, tempAssistantId, "error");
@@ -559,12 +793,10 @@ async function handleSend() {
   });
 }
 
-// 停止当前流式输出
 function abortCurrentStream() {
   currentStream.value?.abort?.();
 }
 
-// 重命名对话
 async function renameConversation(conversation, title) {
   const nextTitle = String(title || "").trim();
   if (!nextTitle) return;
@@ -588,7 +820,6 @@ async function renameConversation(conversation, title) {
   sortConversationsByTimestamp();
 }
 
-// 删除对话
 async function removeConversation(conversation) {
   if (conversations.value.length === 1) return;
 
@@ -596,28 +827,23 @@ async function removeConversation(conversation) {
     conversations.value = conversations.value.filter(
       (item) => item !== conversation,
     );
-    delete messagesByConversation.value[conversation.id];
+    delete messagesByConversation.value[getConversationStateKey(conversation.id)];
   } else {
     await deleteConversation(conversation.id);
     conversations.value = conversations.value.filter(
       (item) => item.id !== conversation.id,
     );
-    delete messagesByConversation.value[conversation.id];
+    delete messagesByConversation.value[getConversationStateKey(conversation.id)];
   }
 
-  // 如果删除的是当前对话，自动切换到第一个
   if (currentConvId.value === conversation.id) {
     const nextConversation = conversations.value[0];
     if (nextConversation) {
-      currentConvId.value = nextConversation.id;
-      if (!nextConversation._local) {
-        await loadConversationMessages(nextConversation.id);
-      }
+      await setCurrentConversation(nextConversation.id);
     }
   }
 }
 
-// 键盘回车发送消息（shift+回车换行）
 function handleKeyDown(event) {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -625,7 +851,6 @@ function handleKeyDown(event) {
   }
 }
 
-// 格式化对话时间（刚刚、几分钟前、几小时前）
 function formatTime(timestamp) {
   const now = Date.now();
   const diff = now - timestamp;
@@ -642,16 +867,6 @@ function formatTime(timestamp) {
   );
 }
 
-// 监听消息变化，自动滚动到底部
-watch(
-  () => currentMessages.value.map((message) => message.content).join("\n"),
-  async () => {
-    await nextTick();
-    messagesEndRef.value?.scrollIntoView({ behavior: "smooth" });
-  },
-);
-
-// 监听输入框内容，自动调整高度
 watch(input, () => {
   if (!textareaRef.value) return;
   textareaRef.value.style.height = "auto";
@@ -661,7 +876,6 @@ watch(input, () => {
   )}px`;
 });
 
-// 页面挂载：初始化对话列表
 onMounted(() => {
   showPendingFlashMessage();
   initConversations().catch((error) => {
@@ -670,7 +884,6 @@ onMounted(() => {
   });
 });
 
-// 页面卸载：终止流式请求
 onUnmounted(() => {
   if (homeToastTimer) {
     clearTimeout(homeToastTimer);
@@ -891,6 +1104,13 @@ body {
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+}
+
+.history-status {
+  padding: 0 0 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #a26a2c;
 }
 
 .message {

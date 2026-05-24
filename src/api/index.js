@@ -209,8 +209,8 @@ export async function getConversations(params = {}) {
   return res.data;
 }
 
-export async function getMessages(convId) {
-  const res = await api.get(`/conversations/${convId}/messages`);
+export async function getMessages(convId, params = {}) {
+  const res = await api.get(`/conversations/${convId}/messages`, { params });
   return res.data;
 }
 
