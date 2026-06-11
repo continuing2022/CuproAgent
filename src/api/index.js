@@ -150,6 +150,11 @@ export async function userRegister(payload) {
   return res.data;
 }
 
+export async function userResetPassword(payload) {
+  const res = await api.post("/auth/forgot-password", payload);
+  return res.data;
+}
+
 export async function userLogout() {
   try {
     const res = await api.post("/auth/logout");
@@ -384,6 +389,7 @@ export default {
   api,
   userLogin,
   userRegister,
+  userResetPassword,
   userLogout,
   getConversations,
   getMessages,

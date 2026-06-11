@@ -78,7 +78,11 @@
             v-if="currentMessageState.isLoadingHistory"
             class="history-status"
           >
-            {{ locale === "zh" ? "正在加载更早消息..." : "Loading older messages..." }}
+            {{
+              locale === "zh"
+                ? "正在加载更早消息..."
+                : "Loading older messages..."
+            }}
           </div>
           <div
             v-for="msg in currentMessages"
@@ -126,6 +130,7 @@
               <el-option label="Qwen-math-turbo" value="qwen-math-turbo" />
               <el-option label="Qwen-max" value="qwen-max" />
               <el-option label="Kimi-K2.5" value="kimi-k2.5" />
+              <el-option label="DeepSeek-v4-Pro" value="deepseek-v4-pro" />
             </el-select>
 
             <div class="network-toggle" :class="{ 'is-network': useNetwork }">
@@ -365,7 +370,10 @@ function updateMessageByTempId(conversationId, tempId, updater) {
   }));
 }
 
-function moveConversationMessageState(sourceConversationId, targetConversationId) {
+function moveConversationMessageState(
+  sourceConversationId,
+  targetConversationId,
+) {
   if (!targetConversationId) {
     return;
   }
@@ -638,12 +646,10 @@ function updateConversationAfterStart(
 
 function updateAssistantPlaceholder(conversationId, tempId, chunk) {
   setConversationMessageState(conversationId, (state) => ({
-    items: appendOrUpdateStreamingMessage(
-      state.items,
-      tempId,
-      chunk,
-      { isThinking: false, status: "streaming" },
-    ).map((message) =>
+    items: appendOrUpdateStreamingMessage(state.items, tempId, chunk, {
+      isThinking: false,
+      status: "streaming",
+    }).map((message) =>
       message._tempId === tempId ? withRenderedContent(message) : message,
     ),
   }));
@@ -827,13 +833,17 @@ async function removeConversation(conversation) {
     conversations.value = conversations.value.filter(
       (item) => item !== conversation,
     );
-    delete messagesByConversation.value[getConversationStateKey(conversation.id)];
+    delete messagesByConversation.value[
+      getConversationStateKey(conversation.id)
+    ];
   } else {
     await deleteConversation(conversation.id);
     conversations.value = conversations.value.filter(
       (item) => item.id !== conversation.id,
     );
-    delete messagesByConversation.value[getConversationStateKey(conversation.id)];
+    delete messagesByConversation.value[
+      getConversationStateKey(conversation.id)
+    ];
   }
 
   if (currentConvId.value === conversation.id) {
@@ -1268,7 +1278,9 @@ body {
   box-shadow:
     0 0 0 1px rgba(255, 181, 77, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .model-select:deep(.el-select__wrapper:hover),
@@ -1313,7 +1325,9 @@ body {
   font-size: 13px;
   font-weight: 600;
   line-height: 1;
-  transition: color 0.2s ease, opacity 0.2s ease;
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .toggle-label-local {

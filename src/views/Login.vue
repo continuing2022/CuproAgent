@@ -42,10 +42,8 @@
       <div class="form-section">
         <div class="form-card">
           <div class="form-header">
-            <h2>{{ isLogin ? t("welcome_back") : t("create_account") }}</h2>
-            <p>
-              {{ isLogin ? t("login_continue_desc") : t("start_journey_desc") }}
-            </p>
+            <h2>{{ formTitle }}</h2>
+            <p>{{ formDescription }}</p>
           </div>
 
           <el-form
@@ -59,7 +57,7 @@
             @submit.prevent="handleSubmit"
           >
             <el-form-item
-              v-if="!isLogin"
+              v-if="isRegister"
               prop="username"
               class="auth-form-item"
               :error="serverErrors.username"
@@ -140,7 +138,13 @@
               <el-checkbox v-model="rememberMe">{{
                 t("remember_me")
               }}</el-checkbox>
-              <!-- <a href="#" class="forgot-link">{{ t("forgot_password") }}</a> -->
+              <button
+                type="button"
+                class="forgot-link"
+                @click="enterForgotPassword"
+              >
+                {{ t("forgot_password") }}
+              </button>
             </div>
 
             <el-button
@@ -149,15 +153,15 @@
               :loading="isLoading"
               :disabled="isLoading"
             >
-              <span>{{ isLogin ? t("login") : t("register") }}</span>
+              <span>{{ submitText }}</span>
               <ArrowRight v-if="!isLoading" size="18" />
             </el-button>
           </el-form>
 
           <div class="switch-mode">
-            {{ isLogin ? t("no_account") : t("has_account") }}
+            {{ switchPrompt }}
             <button type="button" class="switch-btn" @click="switchMode()">
-              {{ isLogin ? t("register_now") : t("login_now") }}
+              {{ switchActionText }}
             </button>
           </div>
         </div>
@@ -179,7 +183,7 @@
 import { computed, nextTick, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { Mail, Lock, User, ArrowRight } from "lucide-vue-next";
-import { userLogin, userRegister } from "@/api";
+import { userLogin, userRegister, userResetPassword } from "@/api";
 import { t } from "@/i18n";
 import router from "@/router";
 import { setAuthSession } from "@/utils/authStorage";
@@ -194,6 +198,7 @@ import {
 
 const formRef = ref(null);
 const isLogin = ref(true);
+const isForgotPassword = ref(false);
 const isLoading = ref(false);
 const rememberMe = ref(true);
 
@@ -211,6 +216,33 @@ const serverErrors = reactive({
   confirmPassword: "",
 });
 
+const isRegister = computed(() => !isLogin.value && !isForgotPassword.value);
+const formTitle = computed(() => {
+  if (isLogin.value) return t("welcome_back");
+  if (isForgotPassword.value) return t("reset_password");
+  return t("create_account");
+});
+const formDescription = computed(() => {
+  if (isLogin.value) return t("login_continue_desc");
+  if (isForgotPassword.value) return t("reset_password_desc");
+  return t("start_journey_desc");
+});
+const submitText = computed(() => {
+  if (isLogin.value) return t("login");
+  if (isForgotPassword.value) return t("reset_password_submit");
+  return t("register");
+});
+const switchPrompt = computed(() =>
+  isLogin.value
+    ? t("no_account")
+    : isForgotPassword.value
+      ? t("remember_password")
+      : t("has_account"),
+);
+const switchActionText = computed(() =>
+  isLogin.value ? t("register_now") : t("login_now"),
+);
+
 const authMessageKeyMap = {
   "username required": ["err_enter_username", "请输入用户名"],
   "username must be 2-20 characters": [
@@ -227,6 +259,7 @@ const authMessageKeyMap = {
   "invalid credentials": ["auth_invalid_credentials", "邮箱或密码错误"],
   "email already registered": ["auth_email_registered", "该邮箱已被注册"],
   "email already in use": ["auth_email_registered", "该邮箱已被注册"],
+  "email not registered": ["auth_email_not_registered", "该邮箱尚未注册"],
   "validation failed": ["auth_validation_failed", "请先修正表单中的错误"],
 };
 
@@ -246,6 +279,7 @@ Object.assign(authMessageKeyMap, {
   "invalid credentials": ["auth_invalid_credentials", "邮箱或密码错误"],
   "email already registered": ["auth_email_registered", "该邮箱已被注册"],
   "email already in use": ["auth_email_registered", "该邮箱已被注册"],
+  "email not registered": ["auth_email_not_registered", "该邮箱尚未注册"],
   "validation failed": ["auth_validation_failed", "请先修正表单中的错误"],
 });
 
@@ -344,9 +378,9 @@ const validateConfirmPasswordField = (_, value, callback) => {
 };
 
 const formRules = computed(() => ({
-  username: isLogin.value
-    ? []
-    : [{ validator: validateUsernameField, trigger: "blur" }],
+  username: isRegister.value
+    ? [{ validator: validateUsernameField, trigger: "blur" }]
+    : [],
   email: [{ validator: validateEmailField, trigger: "blur" }],
   password: [{ validator: validatePasswordField, trigger: "blur" }],
   confirmPassword: isLogin.value
@@ -357,6 +391,7 @@ const formRules = computed(() => ({
 async function switchMode(nextMode = !isLogin.value, options = {}) {
   const { preserveEmail = false } = options;
   isLogin.value = nextMode;
+  isForgotPassword.value = false;
   formData.username = "";
   formData.password = "";
   formData.confirmPassword = "";
@@ -368,11 +403,22 @@ async function switchMode(nextMode = !isLogin.value, options = {}) {
   formRef.value?.clearValidate();
 }
 
+async function enterForgotPassword() {
+  isLogin.value = false;
+  isForgotPassword.value = true;
+  formData.username = "";
+  formData.password = "";
+  formData.confirmPassword = "";
+  clearAllServerErrors();
+  await nextTick();
+  formRef.value?.clearValidate();
+}
+
 async function handleSubmit() {
   if (!formRef.value || isLoading.value) return;
 
   formData.email = normalizeEmail(formData.email);
-  if (!isLogin.value) {
+  if (isRegister.value) {
     formData.username = normalizeUsername(formData.username);
   }
 
@@ -400,6 +446,17 @@ async function handleSubmit() {
         message: t("login_success"),
       });
       await router.push({ name: "Home" });
+      return;
+    }
+
+    if (isForgotPassword.value) {
+      await userResetPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      ElMessage.success(t("reset_password_success"));
+      await switchMode(true, { preserveEmail: true });
       return;
     }
 
@@ -718,6 +775,9 @@ body {
 }
 
 .forgot-link {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   font-size: 14px;
   color: $color-primary;
   text-decoration: none;

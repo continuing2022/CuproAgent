@@ -3,7 +3,7 @@ import { t } from "@/i18n";
 import { userLogout } from "@/api";
 import { hasAccessToken } from "@/utils/authStorage";
 
-const DEFAULT_IDLE_MS = 30 * 60 * 1000;
+const DEFAULT_IDLE_MS = 30 * 600 * 1000;
 const DEFAULT_WARN_MS = 30 * 1000;
 const ACTIVITY_EVENTS = [
   "mousemove",
