@@ -135,8 +135,6 @@ async function handleRename(conversation) {
 </script>
 
 <style lang="scss" scoped>
-@use "@/styles/index" as *;
-
 .sidebar {
   width: 280px;
   background: linear-gradient(180deg, #ff8c00 0%, #ff7a00 100%);
@@ -319,4 +317,3 @@ async function handleRename(conversation) {
   border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 </style>
-

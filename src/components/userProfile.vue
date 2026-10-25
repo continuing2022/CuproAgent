@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { User, Settings, HelpCircle, LogOut } from "lucide-vue-next";
 import { ElMessageBox } from "element-plus";
 import router from "@/router";
@@ -86,8 +86,9 @@ const currentUser = ref(null);
 
 const isEnglish = computed({
   get: () => locale.value === "en",
-  set: (value) => {
+  set: async (value) => {
     setLocale(value ? "en" : "zh");
+    await nextTick();
     isOpen.value = false;
   },
 });
@@ -107,7 +108,7 @@ const userTier = computed(() =>
 async function loadCurrentUser() {
   try {
     currentUser.value = await getCurrentUser();
-  } catch (error) {
+  } catch {
     currentUser.value = null;
   }
 }
@@ -122,7 +123,7 @@ const handleLogout = async () => {
     });
     await userLogout();
     window.location.reload();
-  } catch (_) {}
+  } catch {}
 };
 
 const onUserManage = async () => {
@@ -135,7 +136,7 @@ const onUserManage = async () => {
     });
     isOpen.value = false;
     await router.push({ name: "Usermanagement" });
-  } catch (_) {}
+  } catch {}
 };
 
 onMounted(() => {
@@ -144,8 +145,6 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@use "@/styles/index" as *;
-
 .profile-menu-container {
   display: flex;
   align-items: center;
@@ -340,29 +339,6 @@ onMounted(() => {
 .menu-item:hover .menu-icon {
   color: #ff7a1f;
   transform: scale(1.1);
-}
-
-.language-switch {
-  --el-switch-on-color: #ff8c3a;
-  --el-switch-off-color: #ffd8bd;
-}
-
-.language-switch:deep(.el-switch__core) {
-  border: 1px solid rgba(255, 140, 58, 0.45);
-  box-shadow: inset 0 1px 3px rgba(255, 122, 31, 0.18);
-}
-
-.language-switch:deep(.el-switch__action) {
-  border: 1px solid rgba(255, 140, 58, 0.2);
-}
-
-.language-switch:deep(.el-switch__label) {
-  color: #b86932;
-  font-weight: 500;
-}
-
-.language-switch:deep(.el-switch__label.is-active) {
-  color: #ff7a1f;
 }
 
 .menu-item-border {

@@ -4,7 +4,6 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 // 配置element-plus的按需引入
-import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
 import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 // https://vite.dev/config/
@@ -12,9 +11,6 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
-    AutoImport({
-      resolvers: [ElementPlusResolver({ importStyle: "css" })],
-    }),
     Components({
       resolvers: [ElementPlusResolver({ importStyle: "css" })],
     }),
@@ -36,8 +32,7 @@ export default defineConfig({
           if (
             id.includes("/vue/") ||
             id.includes("/@vue/") ||
-            id.includes("vue-router") ||
-            id.includes("pinia")
+            id.includes("vue-router")
           ) {
             return "vendor-vue";
           }

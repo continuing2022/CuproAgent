@@ -30,18 +30,34 @@ CuproAgent 是面向铜及铜合金知识问答场景的 AI 对话前端。项�
 ```text
 CuproAI/
 ├─ src/
-│  ├─ api/                 # Axios 实例、鉴权刷新、SSE 对话请求
-│  ├─ components/          # 侧边栏、用户详情弹窗、图标封装
+│  ├─ api/                 # http、auth、users、conversations、stream；index 保留统一出口
+│  ├─ components/          # 公共组件，以及 chat/、users/ 功能组件
+│  ├─ composables/         # 登录表单、聊天流程/消息/滚动、用户管理、视口状态
 │  ├─ i18n/                # 简易国际化入口
 │  ├─ locales/             # zh / en 文案
 │  ├─ router/              # 路由和权限守卫
-│  ├─ styles/              # 全局样式与变量
+│  ├─ styles/              # element-plus.scss 集中管理组件库覆盖；其余为公共变量
 │  ├─ utils/               # 鉴权存储、聊天数据、提示消息等工具
 │  └─ views/               # Login、Home、Usermanagement
 ├─ public/
 ├─ vite.config.js
 └─ package.json
 ```
+
+页面负责组合界面，功能组件负责各自的交互与布局，composable 管理状态和业务流程，API 模块处理通信和响应格式。普通布局样式留在组件；Element Plus 的内部类、主题变量及覆盖统一放在 `src/styles/element-plus.scss`，并通过页面或组件类名限制作用范围。
+
+消息响应在 API 入口归一化，内部消息的 `content` 始终为字符串。旧数组响应和旧 SSE 事件格式仍在入口兼容。保留权限、表单校验、刷新重试、防重复提交和异步会话定位等必要判断。
+
+## 重构验证
+
+```bash
+npm test
+npm run build
+```
+
+`npm test` 覆盖响应格式兼容、分页数据、并发 401 刷新、SSE 分片与中断。浏览器回归脚本为 `tests/browser-regression.mjs`，使用模拟接口验证登录、聊天及桌面/移动端用户管理，不写入真实后端。
+
+浏览器回归需要测试环境提供 Playwright 和浏览器。启动前端后运行 `npm run test:browser`；可用 `TEST_BASE_URL` 指定地址（默认 `http://127.0.0.1:5175`），用 `PLAYWRIGHT_MODULE` 指定现有 Playwright 模块，用 `TEST_BROWSER_CHANNEL=chrome` 使用本机 Chrome。截图与布局数据输出至已忽略的 `.test-output/`。
 
 ## 环境要求
 

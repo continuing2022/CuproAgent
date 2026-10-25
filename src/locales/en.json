@@ -1,5 +1,4 @@
 {
-  "token_invalid": "Token expired, please log in again",
   "idle_warning_message": "You have been inactive for over 20 minutes. You will be logged out automatically in {seconds} seconds.",
   "idle_warning_title": "Session Reminder",
   "idle_auto_logout": "You have been inactive for too long and were logged out automatically",
@@ -9,7 +8,6 @@
   "ok": "OK",
   "cancel": "Cancel",
   "enter_admin": "Are you sure you want to enter admin panel?",
-  "no_permission": "You do not have permission to access admin panel",
   "personal_info": "Personal Info",
   "backend_manage": "Admin Panel",
   "logout": "Log Out",
@@ -64,7 +62,6 @@
   "err_enter_email": "Please enter email",
   "err_invalid_email": "Please enter a valid email address",
   "err_enter_password": "Please enter password",
-  "err_password_too_short": "Password must be at least 6 characters",
   "err_confirm_password": "Please confirm your password",
   "err_password_not_match": "Passwords do not match",
   "login_success": "Login successful",
@@ -93,7 +90,6 @@
   "add_user": "Add User",
   "search_user_email": "Search username or email...",
   "all_roles": "All Roles",
-  "reset": "Reset",
   "total_users": "Total Users",
   "user_info": "User Info",
   "actions": "Actions",
@@ -141,13 +137,10 @@
   "conversation_deleted": "Conversation deleted",
   "delete_conversation_failed": "Failed to delete conversation",
   "rename_conversation": "Rename conversation",
-  "rename_conversation_title": "Rename Conversation",
   "rename_conversation_message": "Enter a new conversation title",
   "rename_conversation_placeholder": "Conversation title",
   "conversation_title_required": "Please enter a conversation title",
   "conversation_title_too_long": "Conversation title must be 255 characters or fewer",
   "conversation_renamed": "Conversation renamed",
-  "rename_conversation_failed": "Failed to rename conversation",
-  "network": "network",
-  "local": "local"
+  "rename_conversation_failed": "Failed to rename conversation"
 }

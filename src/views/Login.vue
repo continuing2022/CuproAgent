@@ -180,309 +180,31 @@
 </template>
 
 <script setup>
-import { computed, nextTick, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
 import { Mail, Lock, User, ArrowRight } from "lucide-vue-next";
-import { userLogin, userRegister, userResetPassword } from "@/api";
 import { t } from "@/i18n";
-import router from "@/router";
-import { setAuthSession } from "@/utils/authStorage";
-import { setPendingFlashMessage } from "@/utils/flashMessage";
-import {
-  isValidEmail,
-  isValidPassword,
-  isValidUsername,
-  normalizeEmail,
-  normalizeUsername,
-} from "@/utils/authValidation";
+import { useAuthForm } from "@/composables/useAuthForm";
 
-const formRef = ref(null);
-const isLogin = ref(true);
-const isForgotPassword = ref(false);
-const isLoading = ref(false);
-const rememberMe = ref(true);
-
-const formData = reactive({
-  username: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
-});
-
-const serverErrors = reactive({
-  username: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
-});
-
-const isRegister = computed(() => !isLogin.value && !isForgotPassword.value);
-const formTitle = computed(() => {
-  if (isLogin.value) return t("welcome_back");
-  if (isForgotPassword.value) return t("reset_password");
-  return t("create_account");
-});
-const formDescription = computed(() => {
-  if (isLogin.value) return t("login_continue_desc");
-  if (isForgotPassword.value) return t("reset_password_desc");
-  return t("start_journey_desc");
-});
-const submitText = computed(() => {
-  if (isLogin.value) return t("login");
-  if (isForgotPassword.value) return t("reset_password_submit");
-  return t("register");
-});
-const switchPrompt = computed(() =>
-  isLogin.value
-    ? t("no_account")
-    : isForgotPassword.value
-      ? t("remember_password")
-      : t("has_account"),
-);
-const switchActionText = computed(() =>
-  isLogin.value ? t("register_now") : t("login_now"),
-);
-
-const authMessageKeyMap = {
-  "username required": ["err_enter_username", "请输入用户名"],
-  "username must be 2-20 characters": [
-    "username_length_2_20",
-    "用户名长度需为 2 到 20 个字符",
-  ],
-  "email required": ["err_enter_email", "请输入邮箱"],
-  "invalid email format": ["err_invalid_email", "请输入正确的邮箱格式"],
-  "password required": ["err_enter_password", "请输入密码"],
-  "password must be at least 6 characters": [
-    "password_min_6",
-    "密码长度不能少于 6 个字符",
-  ],
-  "invalid credentials": ["auth_invalid_credentials", "邮箱或密码错误"],
-  "email already registered": ["auth_email_registered", "该邮箱已被注册"],
-  "email already in use": ["auth_email_registered", "该邮箱已被注册"],
-  "email not registered": ["auth_email_not_registered", "该邮箱尚未注册"],
-  "validation failed": ["auth_validation_failed", "请先修正表单中的错误"],
-};
-
-Object.assign(authMessageKeyMap, {
-  "username required": ["err_enter_username", "请输入用户名"],
-  "username must be 2-20 characters": [
-    "username_length_2_20",
-    "用户名长度需为 2 到 20 个字符",
-  ],
-  "email required": ["err_enter_email", "请输入邮箱"],
-  "invalid email format": ["err_invalid_email", "请输入正确的邮箱格式"],
-  "password required": ["err_enter_password", "请输入密码"],
-  "password must be at least 6 characters": [
-    "password_min_6",
-    "密码长度不能少于 6 个字符",
-  ],
-  "invalid credentials": ["auth_invalid_credentials", "邮箱或密码错误"],
-  "email already registered": ["auth_email_registered", "该邮箱已被注册"],
-  "email already in use": ["auth_email_registered", "该邮箱已被注册"],
-  "email not registered": ["auth_email_not_registered", "该邮箱尚未注册"],
-  "validation failed": ["auth_validation_failed", "请先修正表单中的错误"],
-});
-
-function mapAuthMessage(message) {
-  if (!message) return t("request_error_retry");
-  const mapped = authMessageKeyMap[message];
-  return mapped ? t(mapped[0], mapped[1]) : message;
-}
-
-function clearServerError(field) {
-  serverErrors[field] = "";
-}
-
-function clearAllServerErrors() {
-  Object.keys(serverErrors).forEach((key) => {
-    serverErrors[key] = "";
-  });
-}
-
-function normalizeField(field) {
-  if (field === "username") {
-    formData.username = normalizeUsername(formData.username);
-  }
-  if (field === "email") {
-    formData.email = normalizeEmail(formData.email);
-  }
-  clearServerError(field);
-}
-
-function handlePasswordInput() {
-  clearServerError("password");
-  clearServerError("confirmPassword");
-}
-
-function applyServerErrors(fieldErrors = {}) {
-  clearAllServerErrors();
-  Object.entries(fieldErrors).forEach(([field, message]) => {
-    if (Object.prototype.hasOwnProperty.call(serverErrors, field)) {
-      serverErrors[field] = mapAuthMessage(message);
-    }
-  });
-}
-
-const validateUsernameField = (_, value, callback) => {
-  const normalizedValue = normalizeUsername(value);
-  if (!normalizedValue) {
-    callback(new Error(t("err_enter_username")));
-    return;
-  }
-  if (!isValidUsername(normalizedValue)) {
-    callback(new Error(t("username_length_2_20")));
-    return;
-  }
-  callback();
-};
-
-const validateEmailField = (_, value, callback) => {
-  const normalizedValue = normalizeEmail(value);
-  if (!normalizedValue) {
-    callback(new Error(t("err_enter_email")));
-    return;
-  }
-  if (!isValidEmail(normalizedValue)) {
-    callback(new Error(t("err_invalid_email")));
-    return;
-  }
-  callback();
-};
-
-const validatePasswordField = (_, value, callback) => {
-  if (!value) {
-    callback(new Error(t("err_enter_password")));
-    return;
-  }
-  if (!isValidPassword(value)) {
-    callback(new Error(t("password_min_6")));
-    return;
-  }
-  callback();
-};
-
-const validateConfirmPasswordField = (_, value, callback) => {
-  if (isLogin.value) {
-    callback();
-    return;
-  }
-  if (!value) {
-    callback(new Error(t("err_confirm_password")));
-    return;
-  }
-  if (value !== formData.password) {
-    callback(new Error(t("err_password_not_match")));
-    return;
-  }
-  callback();
-};
-
-const formRules = computed(() => ({
-  username: isRegister.value
-    ? [{ validator: validateUsernameField, trigger: "blur" }]
-    : [],
-  email: [{ validator: validateEmailField, trigger: "blur" }],
-  password: [{ validator: validatePasswordField, trigger: "blur" }],
-  confirmPassword: isLogin.value
-    ? []
-    : [{ validator: validateConfirmPasswordField, trigger: "blur" }],
-}));
-
-async function switchMode(nextMode = !isLogin.value, options = {}) {
-  const { preserveEmail = false } = options;
-  isLogin.value = nextMode;
-  isForgotPassword.value = false;
-  formData.username = "";
-  formData.password = "";
-  formData.confirmPassword = "";
-  if (!preserveEmail) {
-    formData.email = "";
-  }
-  clearAllServerErrors();
-  await nextTick();
-  formRef.value?.clearValidate();
-}
-
-async function enterForgotPassword() {
-  isLogin.value = false;
-  isForgotPassword.value = true;
-  formData.username = "";
-  formData.password = "";
-  formData.confirmPassword = "";
-  clearAllServerErrors();
-  await nextTick();
-  formRef.value?.clearValidate();
-}
-
-async function handleSubmit() {
-  if (!formRef.value || isLoading.value) return;
-
-  formData.email = normalizeEmail(formData.email);
-  if (isRegister.value) {
-    formData.username = normalizeUsername(formData.username);
-  }
-
-  clearAllServerErrors();
-
-  const isValid = await formRef.value.validate().catch(() => false);
-  if (!isValid) return;
-
-  isLoading.value = true;
-
-  try {
-    if (isLogin.value) {
-      const res = await userLogin({
-        email: formData.email,
-        password: formData.password,
-        rememberMe: rememberMe.value,
-      });
-
-      setAuthSession({
-        accessToken: res.token?.accessToken,
-      });
-
-      setPendingFlashMessage({
-        type: "success",
-        message: t("login_success"),
-      });
-      await router.push({ name: "Home" });
-      return;
-    }
-
-    if (isForgotPassword.value) {
-      await userResetPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      ElMessage.success(t("reset_password_success"));
-      await switchMode(true, { preserveEmail: true });
-      return;
-    }
-
-    await userRegister({
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-    });
-
-    ElMessage.success(t("register_success", "注册成功，请登录"));
-    await switchMode(true, { preserveEmail: true });
-  } catch (err) {
-    const fieldErrors = err?.fieldErrors || err?.errors;
-    if (fieldErrors && typeof fieldErrors === "object") {
-      applyServerErrors(fieldErrors);
-      const firstField = Object.keys(fieldErrors)[0];
-      await nextTick();
-      formRef.value?.scrollToField?.(firstField);
-      return;
-    }
-
-    ElMessage.warning(mapAuthMessage(err?.message || err?.error));
-  } finally {
-    isLoading.value = false;
-  }
-}
+const {
+  formRef,
+  isLogin,
+  isRegister,
+  isLoading,
+  rememberMe,
+  formData,
+  serverErrors,
+  formTitle,
+  formDescription,
+  submitText,
+  switchPrompt,
+  switchActionText,
+  formRules,
+  clearServerError,
+  normalizeField,
+  handlePasswordInput,
+  switchMode,
+  enterForgotPassword,
+  handleSubmit,
+} = useAuthForm();
 </script>
 
 <style lang="scss" scoped>
@@ -492,13 +214,6 @@ async function handleSubmit() {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-}
-
-body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  -webkit-font-smoothing: antialiased;
 }
 
 .auth-container {
@@ -706,72 +421,12 @@ body {
   color: $text-muted-2;
 }
 
-:deep(.auth-form .el-form-item__content) {
-  display: block;
-}
-
-:deep(.auth-form .el-form-item__error) {
-  position: static;
-  padding-top: 8px;
-  font-size: 12px;
-  color: $color-danger;
-}
-
-:deep(.auth-input .el-input__wrapper) {
-  min-height: 52px;
-  border-radius: 12px;
-  background: #f8f8f8;
-  box-shadow: 0 0 0 2px transparent inset;
-  padding: 0 14px;
-  transition: all 0.2s ease;
-}
-
-:deep(.auth-input .el-input__wrapper:hover) {
-  background: #fff;
-}
-
-:deep(.auth-input .el-input__wrapper.is-focus) {
-  background: #fff;
-  box-shadow: 0 0 0 2px $color-primary-2 inset;
-}
-
-:deep(.auth-form-item.is-error .el-input__wrapper) {
-  background: #fff5f5;
-  box-shadow: 0 0 0 2px $color-danger inset;
-}
-
-:deep(.auth-input .el-input__inner) {
-  font-size: 15px;
-  color: $text-dark;
-}
-
-:deep(.auth-input .el-input__inner::placeholder) {
-  color: $text-muted-2;
-}
-
-:deep(.auth-input .el-input__prefix-inner) {
-  color: $text-muted-2;
-}
-
-:deep(.auth-input .el-input__suffix-inner) {
-  color: $text-muted-2;
-}
-
 .form-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin: -4px 0 8px;
   font-size: 14px;
-}
-
-:deep(.form-options .el-checkbox) {
-  color: #666;
-}
-
-:deep(.form-options .el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: $color-primary;
-  border-color: $color-primary;
 }
 
 .forgot-link {
@@ -786,35 +441,6 @@ body {
 
 .forgot-link:hover {
   color: $color-primary-2;
-}
-
-.submit-btn {
-  width: 100%;
-  height: 52px;
-  margin-top: 8px;
-  border: none;
-  border-radius: 12px;
-  background: $gradient-primary;
-  color: $color-white;
-  font-size: 16px;
-  font-weight: 600;
-  box-shadow: 0 4px 12px $shadow-primary;
-  transition: all 0.3s ease;
-}
-
-:deep(.submit-btn.el-button) {
-  background: $gradient-primary;
-  color: $color-white;
-}
-
-:deep(.submit-btn.el-button:hover:not(.is-disabled)) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 140, 0, 0.4);
-}
-
-:deep(.submit-btn.is-loading),
-:deep(.submit-btn.is-disabled) {
-  opacity: 0.7;
 }
 
 .switch-mode {

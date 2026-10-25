@@ -11,7 +11,9 @@ export function normalizeConversationsResponse(response, fallbackTitle) {
 }
 
 export function normalizeMessagesResponse(response) {
-  const messages = Array.isArray(response) ? response : response?.messages || [];
+  const messages = Array.isArray(response)
+    ? response
+    : response?.messages || [];
   return messages.map((message, index) => {
     const normalizedId =
       message?.id ??
@@ -48,12 +50,14 @@ export function appendOrUpdateStreamingMessage(
     if (message._tempId !== tempId) return message;
     return {
       ...message,
-      content: `${message.content || ""}${chunk}`,
+      content: `${message.content}${chunk}`,
       ...overrides,
     };
   });
 }
 
 export function ensureActiveConversation(conversations, conversationId) {
-  return conversations.find((conversation) => conversation.id === conversationId);
+  return conversations.find(
+    (conversation) => conversation.id === conversationId,
+  );
 }

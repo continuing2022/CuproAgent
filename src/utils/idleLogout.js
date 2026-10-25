@@ -56,7 +56,7 @@ export function setupIdleLogout(router, options = {}) {
 
     try {
       await userLogout();
-    } catch (error) {
+    } catch {
       // Keep logout resilient even if the network request fails.
     } finally {
       ElMessage.warning(t("idle_auto_logout"));

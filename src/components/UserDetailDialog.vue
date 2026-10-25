@@ -4,7 +4,7 @@
     :title="t('user_detail')"
     :width="dialogWidth"
     :close-on-click-modal="false"
-    custom-class="user-detail-dialog"
+    class="user-detail-dialog"
   >
     <div v-if="loading" class="loading">{{ t("loading") }}</div>
 
@@ -60,28 +60,21 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from "vue";
+import { ref, watch, computed } from "vue";
 import { getCurrentUser, getUserById } from "@/api";
 import { t } from "@/i18n";
+import { formatDate } from "@/utils/date";
+import { useViewportWidth } from "@/composables/useViewportWidth";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
   user: { type: Object, default: null },
 });
-const emit = defineEmits(["update:modelValue"]);
 
-const visible = ref(props.modelValue);
+const visible = defineModel({ type: Boolean, default: false });
 const loading = ref(false);
 const userData = ref(props.user);
 
-watch(
-  () => props.modelValue,
-  (v) => {
-    visible.value = v;
-  },
-);
 watch(visible, (v) => {
-  emit("update:modelValue", v);
   if (v) loadUser();
 });
 watch(
@@ -97,49 +90,19 @@ const avatarLetter = computed(() => {
   return name ? String(name).charAt(0).toUpperCase() : "";
 });
 
-const dialogWidth = ref("600px");
-const descColumn = ref(2);
-function updateDialogWidth() {
-  try {
-    const isSmall = window.innerWidth <= 640;
-    dialogWidth.value = isSmall ? "95%" : "600px";
-    descColumn.value = isSmall ? 1 : 2;
-  } catch (e) {
-    dialogWidth.value = "600px";
-    descColumn.value = 2;
-  }
-}
-onMounted(() => {
-  updateDialogWidth();
-  window.addEventListener("resize", updateDialogWidth);
-});
-onUnmounted(() => {
-  window.removeEventListener("resize", updateDialogWidth);
-});
-
-const pad = (n) => String(n).padStart(2, "0");
-const formatDate = (iso) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
+const viewportWidth = useViewportWidth();
+const dialogWidth = computed(() =>
+  viewportWidth.value <= 640 ? "95%" : "600px",
+);
+const descColumn = computed(() => (viewportWidth.value <= 640 ? 1 : 2));
 
 async function loadUser() {
-  if (!visible.value) return;
   loading.value = true;
   try {
-    if (props.user && props.user.id) {
-      try {
-        const detail = await getUserById(props.user.id);
-        userData.value = detail || props.user;
-      } catch {
-        userData.value = props.user;
-      }
-    } else {
-      const me = await getCurrentUser();
-      userData.value = me || props.user;
-    }
+    const detail = props.user?.id
+      ? await getUserById(props.user.id)
+      : await getCurrentUser();
+    userData.value = detail || props.user;
   } catch (e) {
     userData.value = props.user;
     console.error(e);
@@ -185,9 +148,6 @@ async function loadUser() {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-.detail-info-section .el-descriptions {
-  min-width: 360px;
-}
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
@@ -196,19 +156,8 @@ async function loadUser() {
   padding: 2rem;
   text-align: center;
 }
-:deep(.close-btn) {
-  background-color: #f97316;
-  color: #ffffff;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s ease;
-  cursor: pointer;
-  border: none;
-}
 /* 媒体查询 */
 @media (max-width: 640px) {
-  :deep(.user-detail-dialog) {
-    max-width: 95% !important;
-  }
   .avatar-lg {
     width: 2.5rem;
     height: 2.5rem;
@@ -217,20 +166,6 @@ async function loadUser() {
   .detail-username {
     font-size: 1rem;
     margin-top: 0.5rem;
-  }
-  .detail-info-section .el-descriptions {
-    min-width: 280px;
-  }
-  :deep(.el-descriptions__label) {
-    font-size: 0.85rem;
-    white-space: normal;
-  }
-  :deep(.el-descriptions__content) {
-    font-size: 0.95rem;
-    white-space: normal;
-  }
-  :deep(.close-btn) {
-    padding: 6px 12px;
   }
 }
 </style>

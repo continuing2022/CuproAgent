@@ -15,7 +15,6 @@ import { t } from "@/i18n";
 import { isRouteLoading } from "@/utils/routeLoading";
 </script>
 <style lang="scss" scoped>
-@use "@/styles/index" as *;
 * {
   margin: 0;
   padding: 0;
@@ -83,7 +82,6 @@ import { isRouteLoading } from "@/utils/routeLoading";
 </style>
 
 <style lang="scss">
-@use "@/styles/index" as *;
 html,
 body,
 #app {

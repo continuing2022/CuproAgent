@@ -1,10 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { getCurrentUser, restoreSession } from "@/api";
 import { clearAuthSession, hasAccessToken } from "@/utils/authStorage";
-import {
-  finishRouteLoading,
-  startRouteLoading,
-} from "@/utils/routeLoading";
+import { finishRouteLoading, startRouteLoading } from "@/utils/routeLoading";
 
 const routes = [
   {
@@ -59,7 +56,7 @@ router.beforeEach(async (to) => {
       if (user?.role !== "admin") {
         return { name: "Home" };
       }
-    } catch (error) {
+    } catch {
       clearAuthSession();
       return { name: "Login" };
     }
@@ -68,16 +65,13 @@ router.beforeEach(async (to) => {
   return true;
 });
 
-router.afterEach(() => {
+function finishNavigation() {
   if (!activeRouteLoadingId) return;
   finishRouteLoading(activeRouteLoadingId);
   activeRouteLoadingId = null;
-});
+}
 
-router.onError(() => {
-  if (!activeRouteLoadingId) return;
-  finishRouteLoading(activeRouteLoadingId);
-  activeRouteLoadingId = null;
-});
+router.afterEach(finishNavigation);
+router.onError(finishNavigation);
 
 export default router;
