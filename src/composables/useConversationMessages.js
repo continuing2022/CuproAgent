@@ -1,18 +1,11 @@
 import { ref } from "vue";
-import MarkdownIt from "markdown-it";
-import DOMPurify from "dompurify";
+import { renderMarkdown } from "@/utils/markdown";
 import { getMessages } from "@/api";
 
 export function useConversationMessages() {
   const MESSAGE_PAGE_SIZE = 10;
 
   const LOCAL_CONVERSATION_KEY = "__local__";
-
-  const md = new MarkdownIt({
-    html: false,
-    linkify: true,
-    typographer: true,
-  });
 
   const messagesByConversation = ref({});
 
@@ -57,11 +50,7 @@ export function useConversationMessages() {
   }
 
   function renderContent(text) {
-    try {
-      return DOMPurify.sanitize(md.render(text));
-    } catch {
-      return DOMPurify.sanitize(text);
-    }
+    return renderMarkdown(text);
   }
 
   function withRenderedContent(message) {

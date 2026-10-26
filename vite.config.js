@@ -52,6 +52,9 @@ export default defineConfig({
           if (id.includes("axios")) {
             return "vendor-axios";
           }
+          if (id.includes("highlight.js")) {
+            return "vendor-highlight";
+          }
           return "vendor-misc";
         },
       },

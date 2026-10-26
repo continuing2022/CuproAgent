@@ -1,0 +1,79 @@
+/* A dedicated typography surface for both history and incremental responses. */
+.markdown-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.85;
+  text-align: start;
+}
+.markdown-body > :first-child { margin-top: 0; }
+.markdown-body > :last-child { margin-bottom: 0; }
+.markdown-body p { margin: 0 0 14px; }
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  margin: 26px 0 12px;
+  color: #242c35;
+  font-weight: 650;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+.markdown-body h1 { font-size: 1.55em; }
+.markdown-body h2 { font-size: 1.3em; }
+.markdown-body h3 { font-size: 1.15em; }
+.markdown-body :is(h4, h5, h6) { font-size: 1em; }
+.markdown-body strong { font-weight: 650; }
+.markdown-body :is(ul, ol) { margin: 10px 0 16px; padding-left: 1.6em; }
+.markdown-body li { margin: 6px 0; padding-left: 3px; }
+.markdown-body li::marker { color: #b47635; }
+.markdown-body li > :is(ul, ol) { margin: 6px 0; }
+.markdown-body li > p { margin: 0 0 6px; }
+.markdown-body hr { height: 0; margin: 24px 0; border: 0; border-top: 1px solid #ece9e4; }
+.markdown-body blockquote {
+  margin: 18px 0;
+  padding: 12px 16px;
+  border-left: 3px solid #efb669;
+  border-radius: 0 8px 8px 0;
+  background: #fff9ef;
+  color: #66543e;
+}
+.markdown-body blockquote > :last-child { margin-bottom: 0; }
+.markdown-body a { color: #a85b0e; text-decoration: underline; text-underline-offset: 3px; }
+.markdown-body a:hover { color: #713c06; }
+.markdown-body :is(a, button, .table-scroll):focus-visible { outline: 2px solid #d68522; outline-offset: 3px; }
+.markdown-body :not(pre) > code {
+  padding: 2px 5px;
+  border: 1px solid #eae6df;
+  border-radius: 5px;
+  background: #f6f4ef;
+  color: #86531f;
+  font-size: .88em;
+  box-decoration-break: clone;
+}
+.markdown-body :is(code, pre) { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+.markdown-body .code-block { overflow: hidden; margin: 18px 0; border: 1px solid #e7e9ed; border-radius: 10px; background: #f8fafc; }
+.markdown-body .code-block-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; background: #f1f3f6; border-bottom: 1px solid #e7e9ed; color: #65707d; font-size: 12px; line-height: 1.5; }
+.markdown-body .code-block-toolbar button { flex-shrink: 0; padding: 3px 8px; border: 1px solid #dce1e7; border-radius: 5px; background: #fff; color: #4d5967; font: inherit; cursor: pointer; }
+.markdown-body .code-block-toolbar button:hover { border-color: #afbac7; color: #243347; }
+.markdown-body pre { max-width: 100%; overflow-x: auto; margin: 18px 0; padding: 16px; background: #f8fafc; color: #263445; font-size: 13px; line-height: 1.7; tab-size: 2; white-space: pre; overflow-wrap: normal; }
+.markdown-body .code-block pre { margin: 0; }
+.markdown-body pre code { padding: 0; border: 0; background: transparent; color: inherit; font-size: inherit; }
+.markdown-body .hljs-comment { color: #75808d; font-style: italic; }
+.markdown-body :is(.hljs-keyword, .hljs-selector-tag, .hljs-literal) { color: #9545a1; }
+.markdown-body :is(.hljs-string, .hljs-attr, .hljs-template-tag) { color: #247454; }
+.markdown-body :is(.hljs-number, .hljs-built_in, .hljs-type) { color: #a95c1f; }
+.markdown-body :is(.hljs-title, .hljs-function, .hljs-tag) { color: #2866a5; }
+.markdown-body .table-scroll { max-width: 100%; overflow-x: auto; margin: 18px 0; border: 1px solid #e8e5df; border-radius: 10px; }
+.markdown-body table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.65; }
+.markdown-body :is(th, td) { min-width: 100px; padding: 11px 14px; border-bottom: 1px solid #ece9e4; text-align: left; vertical-align: top; }
+.markdown-body th { background: #faf7f1; color: #64513a; font-weight: 650; white-space: nowrap; }
+.markdown-body tr:last-child td { border-bottom: 0; }
+.markdown-body tbody tr:nth-child(even) { background: #fdfcfa; }
+.markdown-body img { max-width: 100%; height: auto; border-radius: 8px; }
+.markdown-body :is(sup, sub) { line-height: 0; }
+.message.user .markdown-body :is(h1, h2, h3, h4, h5, h6, a) { color: inherit; }
+.message.user .markdown-body li::marker { color: inherit; }
+.message.user .markdown-body :not(pre) > code { color: inherit; background: #ffffff24; border-color: #ffffff45; }
+.message.user .markdown-body hr { border-color: #ffffff55; }
+@media (max-width: 640px) {
+  .markdown-body { font-size: 14px; }
+  .markdown-body :is(ul, ol) { padding-left: 1.4em; }
+  .markdown-body :is(th, td) { padding: 9px 11px; }
+}

@@ -16,6 +16,7 @@
         {{ msg.role === "user" ? "U" : "CU" }}
       </div>
       <div class="message-content">
+        <MessageAttachments v-if="msg.attachments?.length" :files="msg.attachments" />
         <!-- AI 思考中动画 -->
         <template v-if="msg.role === 'assistant' && msg.isThinking">
           <div class="thinking-bubble">
@@ -27,7 +28,7 @@
           </div>
         </template>
         <!-- 渲染 markdown 消息 -->
-        <div v-else v-html="msg.renderedHtml"></div>
+        <div v-else class="markdown-body" @click="copyCode" v-html="msg.renderedHtml"></div>
       </div>
     </div>
     <!-- 消息滚动到底部的锚点 -->
@@ -37,10 +38,32 @@
 
 <script setup>
 import { locale } from "@/i18n";
+import { onUnmounted } from "vue";
+import MessageAttachments from "./MessageAttachments.vue";
+import "./markdown.css";
 defineProps({
   messages: { type: Array, required: true },
   isLoadingHistory: Boolean,
 });
+const copyTimers = new Set();
+async function copyCode(event) {
+  const button = event.target.closest("button[data-copy-code]");
+  if (!button || !event.currentTarget.contains(button)) return;
+  const code = button.closest(".code-block")?.querySelector("pre code");
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code.textContent);
+    if (button.isConnected) button.textContent = locale.value === "zh" ? "已复制" : "Copied";
+  } catch {
+    if (button.isConnected) button.textContent = locale.value === "zh" ? "复制失败" : "Copy failed";
+  }
+  const timer = setTimeout(() => {
+    if (button.isConnected) button.textContent = locale.value === "zh" ? "复制代码" : "Copy code";
+    copyTimers.delete(timer);
+  }, 1800);
+  copyTimers.add(timer);
+}
+onUnmounted(() => copyTimers.forEach(clearTimeout));
 </script>
 
 <style lang="scss" scoped>
@@ -93,10 +116,12 @@ defineProps({
 }
 
 .message-content {
+  min-width: 0;
   flex: 1;
   padding: 12px 16px;
-  line-height: 1.6;
+  line-height: 1.8;
   font-size: 15px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .message.user {
@@ -111,10 +136,17 @@ defineProps({
 }
 
 .message.assistant .message-content {
+  padding: 20px 24px;
   background: white;
   color: #2d2d2d;
   border-radius: 12px 12px 12px 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 640px) {
+  .message { gap: 10px; }
+  .message-avatar { width: 30px; height: 30px; font-size: 12px; }
+  .message.assistant .message-content { padding: 16px; }
 }
 
 .thinking-bubble {

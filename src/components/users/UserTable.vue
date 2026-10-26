@@ -90,6 +90,7 @@
     <div class="table-footer">
       <el-pagination
         background
+        popper-class="model-select-popper user-page-size-popper"
         layout="total, sizes, prev, pager, next"
         :total="total"
         :current-page="currentPage"

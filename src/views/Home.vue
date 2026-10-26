@@ -65,9 +65,12 @@
         v-model="input"
         v-model:model-name="modelName"
         v-model:use-network="useNetwork"
+        v-model:attachments="attachments"
+        :chat-error="chatError"
         :is-streaming="isStreaming"
         @send="handleSend"
         @stop="abortCurrentStream"
+        @clear-error="chatError = ''"
       />
     </main>
   </div>
@@ -86,6 +89,8 @@ import { t } from "@/i18n";
 
 const {
   input,
+  attachments,
+  chatError,
   isStreaming,
   useNetwork,
   modelName,

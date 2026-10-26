@@ -51,7 +51,7 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button class="close-btn" @click="visible = false">{{
+        <el-button type="primary" class="close-btn" @click="visible = false">{{
           t("close")
         }}</el-button>
       </div>
@@ -120,24 +120,25 @@ async function loadUser() {
 .avatar-lg {
   width: 3rem;
   height: 3rem;
-  background: #facc15;
+  background: linear-gradient(135deg, #ffb84d, #ff8c00);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto;
-  color: #ea580c;
+  color: #ffffff;
   font-weight: 700;
   font-size: 1.25rem;
 }
 .detail-username {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--cupro-text-main);
   margin: 0.75rem 0 0.25rem;
 }
 .detail-email {
-  color: #6b7280;
+  color: var(--cupro-text-muted);
+  overflow-wrap: anywhere;
   margin: 0;
 }
 .detail-badges {

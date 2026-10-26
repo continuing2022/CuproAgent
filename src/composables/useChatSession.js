@@ -27,6 +27,8 @@ export function useChatSession() {
   } = useConversationMessages();
 
   const input = ref("");
+  const attachments = ref([]);
+  const chatError = ref("");
 
   const isStreaming = ref(false);
 
@@ -199,13 +201,20 @@ export function useChatSession() {
 
   async function handleSend() {
     const content = input.value.trim();
-    if (!content || isStreaming.value) return;
+    const files = attachments.value;
+    if ((!content && !files.length) || isStreaming.value || files.some(file => file.status !== "ready")) return;
+    chatError.value = "";
+    const displayTitle = content || files[0]?.name || t("new_chat");
+    if ((files.length || currentMessages.value.some(message => message.attachments?.length)) && !modelName.value.startsWith("qwen")) modelName.value = "qwen-plus";
+    if (files.some(file => file.mimeType.startsWith("image/")) || currentMessages.value.some(message => message.attachments?.some(file => file.mimeType.startsWith("image/")))) modelName.value = "qwen3-vl-plus";
     input.value = "";
+    attachments.value = [];
     isStreaming.value = true;
 
     const tempUserMessage = withRenderedContent({
       role: "user",
       content,
+      attachments: files.map(({ id, name, mimeType, size }) => ({ id, name, mimeType, size })),
       _tempId: `user-${Date.now()}`,
     });
     const tempAssistantId = `assistant-${Date.now()}`;
@@ -233,6 +242,7 @@ export function useChatSession() {
     const payload = {
       content,
       model: modelName.value,
+      attachment_ids: files.map(file => file.id),
     };
 
     if (
@@ -245,20 +255,23 @@ export function useChatSession() {
       payload.title =
         activeConversation?.title && activeConversation.title !== t("new_chat")
           ? activeConversation.title
-          : content.slice(0, 15);
+          : displayTitle.slice(0, 15);
     }
 
     if (useNetwork.value) {
       payload.networkConfig = { search: true };
     }
 
+    let messageStarted = false;
     currentStream.value = sendMessageStream(payload, {
       onStarted(event) {
+        messageStarted = true;
         streamConversationId = updateConversationAfterStart(
           streamConversationId,
           event.conversation_id,
-          content,
+          displayTitle,
         );
+        updateMessageByTempId(streamConversationId, tempUserMessage._tempId, () => ({ message_id: event.user_message_id }));
       },
       onChunk(event) {
         updateAssistantPlaceholder(
@@ -287,7 +300,7 @@ export function useChatSession() {
             !currentConversation.title ||
             currentConversation.title === t("new_chat")
           ) {
-            currentConversation.title = content.slice(0, 15);
+            currentConversation.title = displayTitle.slice(0, 15);
           }
         }
         persistConversationScroll(doneConversationId);
@@ -303,6 +316,14 @@ export function useChatSession() {
         resetStreamingState();
       },
       onError(error) {
+        chatError.value = error.message || String(error);
+        if (!messageStarted) {
+          input.value = content;
+          attachments.value = files.map(({ previewUrl, ...file }) => file);
+          setConversationMessageState(streamConversationId, (state) => ({ items: state.items.filter(message => message._tempId !== tempUserMessage._tempId) }));
+          if (chatError.value.includes("Qwen3-VL-Plus")) modelName.value = "qwen3-vl-plus";
+          else if (chatError.value.includes("Qwen")) modelName.value = "qwen-plus";
+        }
         console.error("sendMessageStream error:", error);
         finalizeAssistantMessage(
           streamConversationId,
@@ -387,6 +408,8 @@ export function useChatSession() {
 
   return {
     input,
+    attachments,
+    chatError,
     isStreaming,
     useNetwork,
     modelName,
