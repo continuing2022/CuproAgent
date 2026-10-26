@@ -280,6 +280,11 @@ export function useChatSession() {
           event.chunk,
         );
       },
+      onRetrieved(event) {
+        if (["missing_user_dashscope_key", "remote_rag_disabled", "retrieval_error"].includes(event.meta?.reason)) {
+          chatError.value = event.meta.message;
+        }
+      },
       onDone(event) {
         const doneConversationId =
           event.conversation_id || streamConversationId;

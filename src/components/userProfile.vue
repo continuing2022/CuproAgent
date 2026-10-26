@@ -40,6 +40,11 @@
                 </div>
               </div>
 
+              <button class="menu-item" @click="showModelSettings = true; isOpen = false">
+                <KeyRound class="menu-icon" />
+                <span class="menu-text">{{ locale === 'zh' ? '模型服务设置' : 'Model services' }}</span>
+              </button>
+
               <button class="menu-item" @click="showUserDetail = true">
                 <User class="menu-icon" />
                 <span class="menu-text">{{ t("personal_info") }}</span>
@@ -67,21 +72,24 @@
       </transition>
 
       <UserDetailDialog v-model="showUserDetail" />
+      <ModelSettingsDialog v-model="showModelSettings" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from "vue";
-import { User, Settings, HelpCircle, LogOut } from "lucide-vue-next";
+import { User, Settings, HelpCircle, LogOut, KeyRound } from "lucide-vue-next";
 import { ElMessageBox } from "element-plus";
 import router from "@/router";
 import UserDetailDialog from "@/components/UserDetailDialog.vue";
+import ModelSettingsDialog from "@/components/ModelSettingsDialog.vue";
 import { getCurrentUser, userLogout } from "@/api";
 import { t, locale, setLocale } from "@/i18n";
 
 const isOpen = ref(false);
 const showUserDetail = ref(false);
+const showModelSettings = ref(false);
 const currentUser = ref(null);
 
 const isEnglish = computed({

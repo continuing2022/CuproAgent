@@ -14,7 +14,6 @@
           <el-option label="Qwen3-VL-Plus · 视觉" value="qwen3-vl-plus" />
           <el-option label="Qwen-math-turbo" value="qwen-math-turbo" />
           <el-option label="Qwen-max" value="qwen-max" />
-          <el-option label="Kimi-K2.5" value="kimi-k2.5" />
           <el-option label="DeepSeek-v4-Pro" value="deepseek-v4-pro" />
         </el-select>
 
@@ -81,6 +80,8 @@
     </div>
     <div class="attachment-hint">{{ locale === 'zh' ? '支持粘贴图片或文件 · 图片 / PDF / MD / TXT / Word (.docx) · 最多 4 个，每个 5 MB · 附件由阿里云存储和分析' : 'Paste images or files · Images / PDF / MD / TXT / Word (.docx) · Up to 4 files, 5 MB each · Stored and analyzed by Alibaba Cloud' }}</div>
     <div class="input-hint">{{ t("input_hint") }}</div>
+    <button type="button" class="key-settings-link" @click="showModelSettings = true">{{ locale === 'zh' ? '模型服务设置 · 配置个人 API Key' : 'Model services · Set your API keys' }}</button>
+    <ModelSettingsDialog v-model="showModelSettings" />
   </div>
 </template>
 
@@ -90,6 +91,8 @@ import { Paperclip } from "lucide-vue-next";
 import { uploadAttachment, deleteAttachment } from "@/api/attachments";
 import { IconSend, IconStop } from "@/components/icons";
 import { locale, t } from "@/i18n";
+import ModelSettingsDialog from "@/components/ModelSettingsDialog.vue";
+const showModelSettings = ref(false);
 
 const input = defineModel({ type: String, required: true });
 const modelName = defineModel("modelName", { type: String, required: true });
@@ -387,4 +390,7 @@ watch(
     width: 100%;
   }
 }
+
+.key-settings-link { display: block; margin: 6px auto 0; padding: 4px; border: 0; background: transparent; color: var(--color-accent-text, #9b501e); cursor: pointer; font-size: 12px; }
+.key-settings-link:hover { text-decoration: underline; }
 </style>
