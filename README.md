@@ -1,5 +1,7 @@
 # CuproAgent
 
+后续优化与验收依据见 [CuproAgent 优化计划](../docs/optimization-plan.md)，包含认证安全、会话与流式状态、前端性能及 RAG 优化的优先级和进度。
+
 CuproAgent 是面向铜及铜合金知识问答场景的 AI 对话前端。项目基于 Vue 3 + Vite 构建，配套 CuproExpress 后端使用，支持登录注册、会话历史、流式输出、多模型切换、本地知识库 RAG、可选联网搜索和管理员用户管理。
 
 ## 功能概览
@@ -13,6 +15,12 @@ CuproAgent 是面向铜及铜合金知识问答场景的 AI 对话前端。项�
 - 本地/联网开关：默认使用私有知识库，可开启联网搜索。
 - 中英文文案切换基础。
 - 管理员页面：用户查询、筛选、分页、新增、编辑、删除、批量删除和导出。
+
+## 密码找回
+
+密码找回分为申请邮件和通过邮件链接设置新密码两个步骤。后端的邮件配置见 [密码重置配置示例](../CuproExpress/password-reset.env.example)。开发环境需显式启用模拟邮件并从后端 `.local-mail/` 打开链接；生产通过 SMTP 投递。前端从链接 fragment 读取一次性 Token 后立即清除 URL 中的凭据，成功重置后返回登录表单。
+
+密码找回浏览器回归：`node tests/browser-password-reset.mjs`（需 Playwright 和本机 Chrome；可按下文设置 `PLAYWRIGHT_MODULE` 和 `TEST_BROWSER_CHANNEL`），脚本自动启动临时 Vite，认证接口使用模拟响应，覆盖邮件申请、链接落地、密码确认、成功和无效链接。
 
 ## 技术栈
 

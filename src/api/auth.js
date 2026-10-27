@@ -11,8 +11,13 @@ export async function userRegister(payload) {
   return res.data;
 }
 
-export async function userResetPassword(payload) {
+export async function requestPasswordReset(payload) {
   const res = await api.post("/auth/forgot-password", payload);
+  return res.data;
+}
+
+export async function userResetPassword(payload) {
+  const res = await api.post("/auth/reset-password", payload);
   return res.data;
 }
 

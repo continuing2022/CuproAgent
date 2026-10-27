@@ -77,6 +77,7 @@
             </el-form-item>
 
             <el-form-item
+              v-if="!isResetPassword"
               prop="email"
               class="auth-form-item"
               :error="serverErrors.email"
@@ -96,6 +97,7 @@
             </el-form-item>
 
             <el-form-item
+              v-if="!isForgotPassword"
               prop="password"
               class="auth-form-item"
               :error="serverErrors.password"
@@ -115,7 +117,7 @@
             </el-form-item>
 
             <el-form-item
-              v-if="!isLogin"
+              v-if="isRegister || isResetPassword"
               prop="confirmPassword"
               class="auth-form-item"
               :error="serverErrors.confirmPassword"
@@ -188,6 +190,8 @@ const {
   formRef,
   isLogin,
   isRegister,
+  isForgotPassword,
+  isResetPassword,
   isLoading,
   rememberMe,
   formData,

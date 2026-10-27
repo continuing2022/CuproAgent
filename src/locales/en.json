@@ -45,7 +45,7 @@
   "remember_me": "Remember me",
   "forgot_password": "Forgot password?",
   "reset_password": "Reset Password",
-  "reset_password_desc": "Reset your password with your registered email",
+  "reset_password_desc": "Set a new password using your one-time email link",
   "reset_password_submit": "Reset Password",
   "reset_password_success": "Password reset successful, please log in",
   "remember_password": "Remembered your password?",
@@ -142,5 +142,10 @@
   "conversation_title_required": "Please enter a conversation title",
   "conversation_title_too_long": "Conversation title must be 255 characters or fewer",
   "conversation_renamed": "Conversation renamed",
-  "rename_conversation_failed": "Failed to rename conversation"
+  "rename_conversation_failed": "Failed to rename conversation",
+  "reset_request_desc": "Enter your registered email to request a reset link",
+  "reset_request_accepted": "If this email is registered, a password reset email will arrive. Please check your inbox.",
+  "reset_unavailable": "Password reset is temporarily unavailable. Please try again later.",
+  "reset_request_submit": "Send reset email",
+  "reset_token_invalid": "This reset link is invalid or expired. Please request another."
 }

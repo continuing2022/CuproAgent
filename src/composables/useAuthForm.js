@@ -1,9 +1,9 @@
-import { computed, nextTick, reactive, ref } from "vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { userLogin, userRegister, userResetPassword } from "@/api";
+import { userLogin, userRegister, userResetPassword, requestPasswordReset } from "@/api";
 import { t } from "@/i18n";
 import router from "@/router";
-import { setAuthSession } from "@/utils/authStorage";
+import { setAuthSession, clearAuthSession } from "@/utils/authStorage";
 import { setPendingFlashMessage } from "@/utils/flashMessage";
 import {
   isValidEmail,
@@ -15,9 +15,11 @@ import {
 
 export function useAuthForm() {
   const formRef = ref(null);
+  const resetToken = ref("");
   const mode = ref("login");
   const isLogin = computed(() => mode.value === "login");
-  const isForgotPassword = computed(() => mode.value === "reset-password");
+  const isForgotPassword = computed(() => mode.value === "forgot-password");
+  const isResetPassword = computed(() => mode.value === "reset-password");
   const isLoading = ref(false);
   const rememberMe = ref(true);
 
@@ -58,6 +60,13 @@ export function useAuthForm() {
       prompt: "remember_password",
       action: "login_now",
     },
+    "forgot-password": {
+      title: "reset_password",
+      description: "reset_request_desc",
+      submit: "reset_request_submit",
+      prompt: "remember_password",
+      action: "login_now",
+    },
   };
   const formTitle = computed(() => t(modeText[mode.value].title));
   const formDescription = computed(() => t(modeText[mode.value].description));
@@ -66,6 +75,8 @@ export function useAuthForm() {
   const switchActionText = computed(() => t(modeText[mode.value].action));
 
   const authMessageKeyMap = {
+    "invalid or expired reset token": ["reset_token_invalid", "重置链接无效或已过期，请重新申请"],
+    "password reset temporarily unavailable": ["reset_unavailable", "密码重置暂不可用，请稍后重试"],
     "username required": ["err_enter_username", "请输入用户名"],
     "username must be 2-20 characters": [
       "username_length_2_20",
@@ -179,9 +190,9 @@ export function useAuthForm() {
     username: isRegister.value
       ? [{ validator: validateUsernameField, trigger: "blur" }]
       : [],
-    email: [{ validator: validateEmailField, trigger: "blur" }],
-    password: [{ validator: validatePasswordField, trigger: "blur" }],
-    confirmPassword: isLogin.value
+    email: isResetPassword.value ? [] : [{ validator: validateEmailField, trigger: "blur" }],
+    password: isForgotPassword.value ? [] : [{ validator: validatePasswordField, trigger: "blur" }],
+    confirmPassword: isLogin.value || isForgotPassword.value
       ? []
       : [{ validator: validateConfirmPasswordField, trigger: "blur" }],
   }));
@@ -192,6 +203,7 @@ export function useAuthForm() {
   ) {
     const { preserveEmail = false } = options;
     mode.value = nextMode;
+    if (nextMode !== "reset-password") resetToken.value = "";
     formData.username = "";
     formData.password = "";
     formData.confirmPassword = "";
@@ -204,8 +216,18 @@ export function useAuthForm() {
   }
 
   function enterForgotPassword() {
-    return switchMode("reset-password", { preserveEmail: true });
+    return switchMode("forgot-password", { preserveEmail: true });
   }
+
+  watch(() => router.currentRoute.value.hash, async (hash) => {
+    const token = new URLSearchParams(hash.slice(1)).get("reset-token");
+    if (!token) return;
+    await switchMode("reset-password");
+    resetToken.value = token;
+    // Update router state as well as browser history; Login may be reused for
+    // same-page links. The credential lives only in this component afterward.
+    await router.replace({ name: "Login", query: router.currentRoute.value.query, hash: "" });
+  }, { immediate: true });
 
   async function handleSubmit() {
     if (!formRef.value || isLoading.value) return;
@@ -243,11 +265,18 @@ export function useAuthForm() {
       }
 
       if (isForgotPassword.value) {
+        await requestPasswordReset({ email: formData.email });
+        ElMessage.success(t("reset_request_accepted"));
+        return;
+      }
+
+      if (isResetPassword.value) {
         await userResetPassword({
-          email: formData.email,
+          token: resetToken.value,
           password: formData.password,
         });
 
+        clearAuthSession();
         ElMessage.success(t("reset_password_success"));
         await switchMode("login", { preserveEmail: true });
         return;
@@ -281,6 +310,8 @@ export function useAuthForm() {
     formRef,
     isLogin,
     isRegister,
+    isForgotPassword,
+    isResetPassword,
     isLoading,
     rememberMe,
     formData,

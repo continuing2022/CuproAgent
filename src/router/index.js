@@ -31,11 +31,16 @@ const router = createRouter({
 
 let activeRouteLoadingId = null;
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   if (activeRouteLoadingId) {
     finishRouteLoading(activeRouteLoadingId);
   }
   activeRouteLoadingId = startRouteLoading();
+
+  const hasResetToken = hash => new URLSearchParams(hash.slice(1)).has("reset-token");
+  if (to.name === "Login" && (hasResetToken(to.hash) || (from.name === "Login" && hasResetToken(from.hash) && !to.hash))) {
+    return true;
+  }
 
   let authenticated = hasAccessToken();
   if (!authenticated) {
