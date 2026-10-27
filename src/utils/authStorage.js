@@ -7,6 +7,11 @@ const LEGACY_KEYS = [
 ];
 
 let inMemoryAccessToken = "";
+let sessionRevision = 0;
+
+export function getSessionRevision() {
+  return sessionRevision;
+}
 
 function clearLegacyStorage() {
   LEGACY_KEYS.forEach((key) => {
@@ -20,11 +25,13 @@ export function getAccessToken() {
 }
 
 export function setAuthSession({ accessToken }) {
+  sessionRevision++;
   inMemoryAccessToken = accessToken ? String(accessToken) : "";
   clearLegacyStorage();
 }
 
 export function clearAuthSession() {
+  sessionRevision++;
   inMemoryAccessToken = "";
   clearLegacyStorage();
 }

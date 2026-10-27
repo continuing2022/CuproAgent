@@ -1,9 +1,11 @@
-import api from "./http";
+import api, { withAuthLock } from "./http";
 import { clearAuthSession } from "@/utils/authStorage";
 
 export async function userLogin(payload) {
-  const res = await api.post("/auth/login", payload);
-  return res.data;
+  return withAuthLock(async () => {
+    const res = await api.post("/auth/login", payload);
+    return res.data;
+  });
 }
 
 export async function userRegister(payload) {
@@ -22,12 +24,11 @@ export async function userResetPassword(payload) {
 }
 
 export async function userLogout() {
-  try {
+  clearAuthSession();
+  return withAuthLock(async () => {
     const res = await api.post("/auth/logout");
     return res.data;
-  } finally {
-    clearAuthSession();
-  }
+  });
 }
 
 export async function getCurrentUser() {

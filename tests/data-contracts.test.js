@@ -17,7 +17,8 @@ const server = await createServer({
     alias: { "@": fileURLToPath(new URL("../src", import.meta.url)) },
   },
 });
-const { default: api } = await server.ssrLoadModule("/src/api/http.js");
+const { default: api, syncSessionAfterRefresh, restoreSession } = await server.ssrLoadModule("/src/api/http.js");
+const { getAccessToken, setAuthSession, clearAuthSession } = await server.ssrLoadModule("/src/utils/authStorage.js");
 const { getMessages } = await server.ssrLoadModule("/src/api/conversations.js");
 const { sendMessageStream } = await server.ssrLoadModule("/src/api/stream.js");
 const { useConversationMessages } = await server.ssrLoadModule(
@@ -38,6 +39,7 @@ globalThis.sessionStorage = { removeItem() {} };
 afterEach(() => {
   globalThis.fetch = originalFetch;
   api.defaults.adapter = originalAdapter;
+  clearAuthSession();
 });
 after(async () => {
   globalThis.localStorage = originalLocalStorage;
@@ -136,6 +138,134 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
   assert.equal(refreshes, 1);
   assert.deepEqual(retried, ["Bearer renewed-token", "Bearer renewed-token"]);
   assert.ok(results.every((result) => result.data.ok));
+});
+
+function httpFailure(config, status, data = {}) {
+  return Object.assign(new Error(data.message || "failed"), { config, response: { status, data } });
+}
+
+test("Axios, SSE and session recovery join the same refresh promise", async () => {
+  setAuthSession({ accessToken: "expired-token" });
+  let releaseRefresh, signalRefresh, signalStream;
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
+  const refreshStarted = new Promise(resolve => { signalRefresh = resolve; });
+  const streamStarted = new Promise(resolve => { signalStream = resolve; });
+  let refreshes = 0, fetches = 0;
+  api.defaults.adapter = async config => {
+    if (config.url === "/auth/refresh") {
+      refreshes++;
+      signalRefresh();
+      await refreshGate;
+      return response(config, { accessToken: "shared-token" });
+    }
+    if (config.headers.Authorization !== "Bearer shared-token") throw httpFailure(config, 401);
+    return response(config, { ok: true });
+  };
+  globalThis.fetch = async (_, { headers }) => {
+    fetches++;
+    if (headers.Authorization === "Bearer expired-token") {
+      signalStream();
+      return new Response("unauthorized", { status: 401 });
+    }
+    assert.equal(headers.Authorization, "Bearer shared-token");
+    return new Response('data: {"type":"done","message_id":1}\n\n');
+  };
+  const ordinary = api.get("/shared");
+  await refreshStarted;
+  const recovery = restoreSession();
+  const stream = new Promise((resolve, reject) => sendMessageStream({}, { onDone: resolve, onError: reject }));
+  await streamStarted;
+  releaseRefresh();
+  const [result, restored] = await Promise.all([ordinary, recovery, stream]);
+  assert.ok(result.data.ok && restored);
+  assert.equal(refreshes, 1);
+  assert.equal(fetches, 2);
+});
+
+test("a late 401 reuses the already renewed token instead of rotating again", async () => {
+  setAuthSession({ accessToken: "old" });
+  let releaseLate, seenLate;
+  const lateGate = new Promise(resolve => { releaseLate = resolve; });
+  const lateStarted = new Promise(resolve => { seenLate = resolve; });
+  let refreshes = 0;
+  api.defaults.adapter = async config => {
+    if (config.url === "/auth/refresh") {
+      refreshes++;
+      return response(config, { accessToken: "new" });
+    }
+    if (!config._retry) {
+      if (config.url === "/late") { seenLate(); await lateGate; }
+      throw httpFailure(config, 401);
+    }
+    assert.equal(config.headers.Authorization, "Bearer new");
+    return response(config, {});
+  };
+  const late = api.get("/late");
+  await lateStarted;
+  await api.get("/early");
+  releaseLate();
+  await late;
+  assert.equal(refreshes, 1);
+});
+
+test("refresh retries explicit conflicts, preserves sessions on 503 and clears on 401", async () => {
+  setAuthSession({ accessToken: "old" });
+  let calls = 0;
+  api.defaults.adapter = async config => {
+    calls++;
+    if (calls === 1) throw httpFailure(config, 409, { code: "refresh_conflict" });
+    return response(config, { accessToken: "new" });
+  };
+  await syncSessionAfterRefresh();
+  assert.equal(calls, 2);
+  assert.equal(getAccessToken(), "new");
+  api.defaults.adapter = async config => { throw httpFailure(config, 503); };
+  await assert.rejects(syncSessionAfterRefresh());
+  assert.equal(getAccessToken(), "new");
+  api.defaults.adapter = async config => { throw httpFailure(config, 401); };
+  await assert.rejects(syncSessionAfterRefresh());
+  assert.equal(getAccessToken(), "");
+});
+
+test("a refresh completing after logout or a new login cannot resurrect or replace that session", async () => {
+  for (const nextSession of ["", "different-account"]) {
+    setAuthSession({ accessToken: "old" });
+    let release, started;
+    const gate = new Promise(resolve => { release = resolve; });
+    const waiting = new Promise(resolve => { started = resolve; });
+    api.defaults.adapter = async config => { started(); await gate; return response(config, { accessToken: "stale" }); };
+    const pending = syncSessionAfterRefresh();
+    await waiting;
+    if (nextSession) setAuthSession({ accessToken: nextSession });
+    else clearAuthSession();
+    release();
+    await assert.rejects(pending, error => error.code === "session_changed");
+    assert.equal(getAccessToken(), nextSession);
+  }
+});
+
+test("invalid login credentials do not trigger session refresh", async () => {
+  let calls = 0;
+  api.defaults.adapter = async config => { calls++; throw httpFailure(config, 401); };
+  await assert.rejects(api.post("/auth/login", {}));
+  assert.equal(calls, 1);
+});
+
+test("a stream stopped during shared refresh does not reopen after renewal", async () => {
+  setAuthSession({ accessToken: "expired" });
+  let release, started;
+  const gate = new Promise(resolve => { release = resolve; });
+  const waiting = new Promise(resolve => { started = resolve; });
+  api.defaults.adapter = async config => { started(); await gate; return response(config, { accessToken: "new" }); };
+  let fetches = 0;
+  globalThis.fetch = async () => { fetches++; return new Response("unauthorized", { status: 401 }); };
+  let stream;
+  const stopped = new Promise((resolve, reject) => { stream = sendMessageStream({}, { onAbort: resolve, onError: reject }); });
+  await waiting;
+  stream.abort();
+  release();
+  await stopped;
+  assert.equal(fetches, 1);
 });
 
 test("both server validation formats expose canonical field errors", async () => {

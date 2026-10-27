@@ -22,6 +22,16 @@ CuproAgent 是面向铜及铜合金知识问答场景的 AI 对话前端。项�
 
 密码找回浏览器回归：`node tests/browser-password-reset.mjs`（需 Playwright 和本机 Chrome；可按下文设置 `PLAYWRIGHT_MODULE` 和 `TEST_BROWSER_CHANNEL`），脚本自动启动临时 Vite，认证接口使用模拟响应，覆盖邮件申请、链接落地、密码确认、成功和无效链接。
 
+## 认证刷新
+
+普通 Axios 请求、SSE 的首次 401 和会话恢复统一使用 `syncSessionAfterRefresh()`，同一页面共享一个刷新 Promise。迟到的 401 会复用已更新的 Access Token；业务请求最多重试一次，登录等公开认证请求不触发自动刷新。登出或切换会话后，已发出的刷新不能恢复旧会话。
+
+支持 Web Locks 的浏览器会按 API 地址在同源标签页之间串行执行登录、退出和刷新；页面内另有队列。没有 Web Locks 时，对后端 `409 / refresh_conflict` 最多额外重试两次，使用最新 HttpOnly Cookie，不在 localStorage、sessionStorage 或 BroadcastChannel 传输 Token。长时间延迟的无锁跨页竞争仍可能需要重新登录。
+
+只有确认刷新认证失败才清空会话；503 等暂时错误保留当前状态。停止 SSE 后，即使共享刷新完成，也不会重新发送该流式请求。
+
+双标签页浏览器验证：`node tests/browser-auth-refresh.mjs`（与密码找回脚本使用相同的 Playwright / Chrome 配置）。脚本启动临时 Vite 和两个同源标签页，使用模拟接口验证真实 Web Locks、HttpOnly Cookie 轮换以及 Axios/SSE/恢复共用刷新。
+
 ## 技术栈
 
 - Vue 3
@@ -115,7 +125,7 @@ npm run preview
 
 | 模块 | 接口 |
 | --- | --- |
-| 认证 | `/auth/login`、`/auth/register`、`/auth/refresh`、`/auth/logout`、`/auth/forgot-password`、`/auth/me` |
+| 认证 | `/auth/login`、`/auth/register`、`/auth/refresh`、`/auth/logout`、`/auth/forgot-password`、`/auth/reset-password`、`/auth/me` |
 | 用户管理 | `/auth/users`、`/auth/users/stats`、`/auth/users/:id`、`/auth/users/bulk-delete`、`/auth/users/export` |
 | 会话 | `/conversations`、`/conversations/:id/messages`、`/conversations/:id` |
 
@@ -154,7 +164,7 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 - 未登录用户访问任意页面会被路由守卫重定向到 `/login`。
 - 已登录用户访问 `/login` 会自动回到首页。
 - `/usermanagement` 需要管理员角色，普通用户会被重定向到首页。
-- Access token 保存在前端会话存储中，refresh token 由后端写入 HttpOnly cookie。
+- Access Token 仅保存在页面内存中，Refresh Token 由后端写入 HttpOnly Cookie。
 
 ## 可配置项
 
@@ -164,7 +174,7 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 ## 页面说明
 
-- `/login`：登录、注册、忘记密码三种表单模式。
+- `/login`：登录、注册、申请密码找回，以及邮件链接进入的新密码表单。
 - `/`：主对话页，包含会话侧栏、模型选择、本地/联网开关、消息流式输出。
 - `/usermanagement`：管理员用户管理页。
 

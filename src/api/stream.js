@@ -92,6 +92,7 @@ async function openStreamResponse(
   controller,
   allowRefreshRetry = true,
 ) {
+  controller.signal.throwIfAborted();
   const headers = {
     Accept: "text/event-stream",
     "Content-Type": "application/json",
@@ -111,7 +112,9 @@ async function openStreamResponse(
   });
 
   if (res.status === 401 && allowRefreshRetry) {
-    await syncSessionAfterRefresh();
+    await res.body?.cancel();
+    await syncSessionAfterRefresh({ failedAccessToken: token || "" });
+    controller.signal.throwIfAborted();
     return openStreamResponse(payload, controller, false);
   }
 
