@@ -80,7 +80,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from "vue";
 import { User, Settings, HelpCircle, LogOut, KeyRound } from "lucide-vue-next";
-import { ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import router from "@/router";
 import UserDetailDialog from "@/components/UserDetailDialog.vue";
 import ModelSettingsDialog from "@/components/ModelSettingsDialog.vue";
@@ -144,7 +144,11 @@ const onUserManage = async () => {
     });
     isOpen.value = false;
     await router.push({ name: "Usermanagement" });
-  } catch {}
+  } catch (error) {
+    if (error === "cancel" || error === "close") return;
+    console.error("Failed to open user management", error);
+    ElMessage.error(t("admin_navigation_failed"));
+  }
 };
 
 onMounted(() => {

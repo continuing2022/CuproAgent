@@ -8,6 +8,7 @@
   "ok": "确定",
   "cancel": "取消",
   "enter_admin": "确定要进入后台管理吗？",
+  "admin_navigation_failed": "后台管理加载失败，请刷新页面后重试。",
   "personal_info": "个人信息",
   "backend_manage": "后台管理",
   "logout": "退出登录",

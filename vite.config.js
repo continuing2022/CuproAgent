@@ -20,6 +20,11 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  optimizeDeps: {
+    // The component resolver injects styles after Vite's initial dependency scan.
+    // Prebundle them before lazy routes load to avoid cache invalidation/504s.
+    include: ["element-plus/es", "element-plus/es/components/**/style/css", "@element-plus/icons-vue"],
+  },
   build: {
     rollupOptions: {
       output: {

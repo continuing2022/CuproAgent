@@ -8,6 +8,7 @@
   "ok": "OK",
   "cancel": "Cancel",
   "enter_admin": "Are you sure you want to enter admin panel?",
+  "admin_navigation_failed": "Unable to load the admin panel. Refresh the page and try again.",
   "personal_info": "Personal Info",
   "backend_manage": "Admin Panel",
   "logout": "Log Out",
