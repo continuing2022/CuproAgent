@@ -29,6 +29,9 @@
         </template>
         <!-- 渲染 markdown 消息 -->
         <div v-else class="markdown-body" @click="copyCode" v-html="msg.renderedHtml"></div>
+        <div v-if="msg.role === 'assistant' && (['aborted', 'error', 'timeout'].includes(msg.status) || (msg.status === 'streaming' && !msg._tempId))" class="history-status" role="status">
+          {{ locale === 'zh' ? '此回答未完成' : 'This response is incomplete' }}
+        </div>
       </div>
     </div>
     <!-- 消息滚动到底部的锚点 -->

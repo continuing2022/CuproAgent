@@ -358,3 +358,46 @@ test("stopping a stream calls onAbort without an error", async () => {
     stream.abort();
   });
 });
+
+test("EOF without a terminal event reports interruption exactly once", async () => {
+  globalThis.fetch = async () => new Response('data: {"type":"chunk","chunk":"partial"}\n\n');
+  let chunks = "", done = 0, failures = 0;
+  await new Promise(resolve => sendMessageStream({}, {
+    onChunk: event => { chunks += event.chunk; }, onDone: () => done++,
+    onError: error => { failures++; assert.equal(error.code, "stream_interrupted"); resolve(); },
+  }));
+  assert.equal(chunks, "partial");
+  assert.equal(done, 0);
+  assert.equal(failures, 1);
+});
+
+test("done/error are terminal even when the connection stays open or later sends more frames", async () => {
+  for (const terminal of ['{"type":"done"}', '{"type":"error","error":"failed"}']) {
+    let cancelled = false, done = 0, failures = 0, chunks = 0;
+    globalThis.fetch = async () => new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new TextEncoder().encode(`data: ${terminal}\n\ndata: {"chunk":"late"}\n\ndata: {"type":"done"}\n\n`)); },
+      cancel() { cancelled = true; },
+    }));
+    await new Promise(resolve => sendMessageStream({}, {
+      onChunk: () => chunks++, onDone: () => { done++; resolve(); }, onError: () => { failures++; resolve(); },
+    }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(done + failures, 1);
+    assert.equal(chunks, 0);
+    assert.ok(cancelled);
+  }
+});
+
+test("idle stream timeout releases the client; cancellation is immediate and terminal", async () => {
+  globalThis.fetch = async () => new Response(new ReadableStream({ start() {} }));
+  await new Promise(resolve => sendMessageStream({}, {
+    timeoutMs: 20,
+    onError: error => { assert.equal(error.code, "chat_timeout"); resolve(); },
+  }));
+  let aborted = 0, failed = 0;
+  const stream = sendMessageStream({}, { onAbort: () => aborted++, onError: () => failed++ });
+  stream.abort();
+  stream.abort();
+  assert.equal(aborted, 1);
+  assert.equal(failed, 0);
+});

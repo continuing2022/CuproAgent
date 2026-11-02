@@ -272,6 +272,7 @@ export function useChatSession() {
           displayTitle,
         );
         updateMessageByTempId(streamConversationId, tempUserMessage._tempId, () => ({ message_id: event.user_message_id }));
+        updateMessageByTempId(streamConversationId, tempAssistantId, () => ({ message_id: event.assistant_message_id }));
       },
       onChunk(event) {
         updateAssistantPlaceholder(
@@ -321,7 +322,10 @@ export function useChatSession() {
         resetStreamingState();
       },
       onError(error) {
-        chatError.value = error.message || String(error);
+        chatError.value = error.code === "stream_interrupted"
+          ? t("stream_interrupted", "回答连接已中断，请重试")
+          : error.code === "chat_timeout" ? t("stream_timeout", "回答超时，请重试")
+          : error.message || String(error);
         if (!messageStarted) {
           input.value = content;
           attachments.value = files.map(({ previewUrl, ...file }) => file);

@@ -32,6 +32,14 @@ CuproAgent 是面向铜及铜合金知识问答场景的 AI 对话前端。项�
 
 双标签页浏览器验证：`node tests/browser-auth-refresh.mjs`（与密码找回脚本使用相同的 Playwright / Chrome 配置）。脚本启动临时 Vite 和两个同源标签页，使用模拟接口验证真实 Web Locks、HttpOnly Cookie 轮换以及 Axios/SSE/恢复共用刷新。
 
+## 流式终态与中断恢复
+
+收到 `done`、`error` 或 `cancelled` 后仅处理一次终态，并取消读取、清理超时和监听器。未收到终态即断流时提示中断，手动停止立即释放输入框；传输总时限为 180 秒。正在等待共享刷新时也能停止，停止后的请求不会因刷新成功而重开。
+
+部分回答保留在界面和后端消息记录中；`aborted`、`error`、`timeout` 及重新加载后仍为 `streaming` 的助手消息会显示未完成标识。服务端始发事件提供助手消息 ID，完成时更新同一消息。自动重试发送不完整回答可能重复创建消息，因此当前由用户明确重新发送。
+
+浏览器回归：`node tests/browser-sse-lifecycle.mjs`（按前述设置 Playwright / Chrome），使用模拟接口覆盖无终态断流、手动停止、超时、成功、输入框复位与历史未完成标识。
+
 ## 技术栈
 
 - Vue 3

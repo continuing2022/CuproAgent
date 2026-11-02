@@ -1,4 +1,6 @@
 {
+  "stream_interrupted": "The response connection was interrupted. Please try again.",
+  "stream_timeout": "The response timed out. Please try again.",
   "idle_warning_message": "You have been inactive for over 20 minutes. You will be logged out automatically in {seconds} seconds.",
   "idle_warning_title": "Session Reminder",
   "idle_auto_logout": "You have been inactive for too long and were logged out automatically",

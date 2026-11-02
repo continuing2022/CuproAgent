@@ -2,7 +2,7 @@ import api, { syncSessionAfterRefresh } from "./http";
 import { getAccessToken } from "@/utils/authStorage";
 
 function dispatchSseEvent(event, handlers = {}) {
-  const { onStarted, onRetrieved, onChunk, onDone, onError } = handlers;
+  const { onStarted, onRetrieved, onChunk, onDone, onError, onAbort } = handlers;
   if (!event || typeof event !== "object") return;
 
   if (
@@ -29,7 +29,10 @@ function dispatchSseEvent(event, handlers = {}) {
       onDone?.(event);
       break;
     case "error":
-      onError?.(event.error || event);
+      onError?.(Object.assign(new Error(typeof event.error === "string" ? event.error : event.error?.message || "Stream failed"), { code: event.status === "timeout" ? "chat_timeout" : "stream_error" }));
+      break;
+    case "cancelled":
+      onAbort?.();
       break;
     default:
       if (event.started) onStarted?.(event);
@@ -45,6 +48,16 @@ function dispatchSseEvent(event, handlers = {}) {
       if (event.error) onError?.(event.error);
       break;
   }
+}
+
+function abortable(promise, signal) {
+  if (signal.aborted) { Promise.resolve(promise).catch(() => {}); return Promise.reject(signal.reason); }
+  return new Promise((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener("abort", onAbort);
+    const onAbort = () => { cleanup(); reject(signal.reason); };
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve(promise).then(value => { cleanup(); resolve(value); }, error => { cleanup(); reject(error); });
+  });
 }
 
 function processSsePart(part, handlers) {
@@ -113,7 +126,7 @@ async function openStreamResponse(
 
   if (res.status === 401 && allowRefreshRetry) {
     await res.body?.cancel();
-    await syncSessionAfterRefresh({ failedAccessToken: token || "" });
+    await abortable(syncSessionAfterRefresh({ failedAccessToken: token || "" }), controller.signal);
     controller.signal.throwIfAborted();
     return openStreamResponse(payload, controller, false);
   }
@@ -131,21 +144,42 @@ async function openStreamResponse(
 
 export function sendMessageStream(
   payload,
-  { onStarted, onRetrieved, onChunk, onDone, onError, onAbort } = {},
+  { onStarted, onRetrieved, onChunk, onDone, onError, onAbort, timeoutMs = 180000 } = {},
 ) {
   const controller = new AbortController();
-  const handlers = { onStarted, onRetrieved, onChunk, onDone, onError };
+  let terminal = false;
+  const finish = (status, value) => {
+    if (terminal) return;
+    terminal = true;
+    clearTimeout(deadline);
+    if (status === "done") onDone?.(value);
+    else if (status === "aborted") onAbort?.();
+    else onError?.(value);
+  };
+  const deadline = setTimeout(() => {
+    const error = Object.assign(new Error("Response timed out; please retry"), { code: "chat_timeout" });
+    controller.abort(error);
+  }, timeoutMs);
+  const onSignalAbort = () => finish(controller.signal.reason?.code === "chat_timeout" ? "error" : "aborted", controller.signal.reason);
+  controller.signal.addEventListener("abort", onSignalAbort, { once: true });
+  const guard = callback => event => { if (!terminal) callback?.(event); };
+  const handlers = {
+    onStarted: guard(onStarted), onRetrieved: guard(onRetrieved), onChunk: guard(onChunk),
+    onDone: event => finish("done", event),
+    onError: error => finish("error", error), onAbort: () => finish("aborted"),
+  };
 
   (async () => {
+    let reader;
     try {
-      const res = await openStreamResponse(payload, controller);
+      const res = await abortable(openStreamResponse(payload, controller), controller.signal);
 
-      const reader = res.body.getReader();
+      reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
 
       while (true) {
-        const { value, done } = await reader.read();
+        const { value, done } = await abortable(reader.read(), controller.signal);
         buffer += decoder.decode(value || new Uint8Array(), {
           stream: !done,
         });
@@ -154,18 +188,23 @@ export function sendMessageStream(
         buffer = parts.pop() || "";
         parts.forEach((part) => processSsePart(part, handlers));
 
-        if (done) break;
+        if (done || terminal) break;
       }
 
       if (buffer.trim()) {
         processSsePart(buffer, handlers);
       }
+      if (!terminal) finish("error", Object.assign(new Error("Response connection interrupted; please retry"), { code: "stream_interrupted" }));
     } catch (error) {
-      if (error.name === "AbortError") {
-        onAbort?.();
-        return;
+      if (controller.signal.aborted) onSignalAbort();
+      else finish("error", error);
+    } finally {
+      clearTimeout(deadline);
+      controller.signal.removeEventListener("abort", onSignalAbort);
+      if (reader) {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
       }
-      onError?.(error);
     }
   })();
 
